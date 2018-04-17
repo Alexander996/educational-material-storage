@@ -1,7 +1,7 @@
 from aiomysql.sa import create_engine
 from aioredis import create_redis
 
-from project.settings import DATABASE
+from project.settings import DATABASE, REDIS
 
 
 # Connections initialization
@@ -11,7 +11,7 @@ async def init_mysql(app):
 
 
 async def init_redis(app):
-    redis_engine = await create_redis('redis://localhost', encoding='utf-8')
+    redis_engine = await create_redis(**REDIS)
     app['redis'] = redis_engine
 
 

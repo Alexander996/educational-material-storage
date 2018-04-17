@@ -8,3 +8,8 @@ DATABASE = {
     'password': 'storagedb',
     'autocommit': True
 }
+
+REDIS = {
+    'address': 'redis://localhost',
+    'encoding': 'utf-8'
+}
