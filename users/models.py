@@ -10,5 +10,5 @@ user = sa.Table(
     sa.Column('first_name', sa.String(200)),
     sa.Column('last_name', sa.String(200)),
     sa.Column('role', sa.Integer, nullable=False),
-    sa.Column('blocked', sa.Boolean, nullable=False, default=False)
+    sa.Column('blocked', sa.Boolean, nullable=False, server_default=sa.text('false'))
 )
