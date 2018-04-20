@@ -6,10 +6,11 @@ DATABASE = {
     'db': 'material_storage_db',
     'host': '127.0.0.1',
     'password': 'storagedb',
-    'autocommit': True
+    'autocommit': True,
+    'charset': 'utf8',
 }
 
 REDIS = {
     'address': 'redis://localhost',
-    'encoding': 'utf-8'
+    'encoding': 'utf-8',
 }
