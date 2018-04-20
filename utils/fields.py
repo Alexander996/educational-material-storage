@@ -8,7 +8,7 @@ class Field(object):
         'required': 'This field is required'
     }
 
-    def __init__(self, *, required=None, allow_null=False,
+    def __init__(self, required=None, allow_null=False,
                  read_only=False, write_only=False, default=empty):
 
         if required is None:
