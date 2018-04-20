@@ -1,2 +1,4 @@
 .idea
 **/__pycache__
+alembic/versions/*
+!alembic/versions/__init__.py
