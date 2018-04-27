@@ -1,3 +1,5 @@
+from aiohttp.web_exceptions import HTTPNotFound
+
 from utils.exceptions import ValidationError
 from utils.fields import Field, Empty
 
@@ -22,10 +24,11 @@ class Serializer(Field, metaclass=SerializerMeta):
     def __init__(self, data=Empty, **kwargs):
         self.initial_data = data
         self.validated_data = {}
-        self.errors = {}
         super(Serializer, self).__init__(**kwargs)
 
     def is_valid(self):
+        errors = {}
+
         for field_name, field in self.serializer_fields.items():
             if field.read_only:
                 continue
@@ -36,9 +39,25 @@ class Serializer(Field, metaclass=SerializerMeta):
 
             value = field.validate(initial_value)
             if field.validation_error is not None:
-                self.errors[field_name] = field.validation_error
+                errors[field_name] = field.validation_error
             else:
                 self.validated_data[field_name] = value
 
-        if self.errors:
-            raise ValidationError(self.errors)
+        if errors:
+            raise ValidationError(errors)
+
+    async def to_json(self, result):
+        if result.rowcount == 0:
+            raise HTTPNotFound
+
+        json = {}
+        async for row in result:
+            for field_name, value in row.items():
+                field = self.serializer_fields.get(field_name, None)
+                if field is None or field.write_only:
+                    continue
+
+                json_value = field.to_representation(value)
+                json[field_name] = json_value
+
+        return json

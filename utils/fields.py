@@ -61,14 +61,26 @@ class Field(object):
         msg = self.error_messages[key]
         self.validation_error = msg.format(**kwargs)
 
+    def to_representation(self, value):
+        pass
+
 
 class CharField(Field):
     expected_types = str
+
+    def to_representation(self, value):
+        return str(value)
 
 
 class IntegerField(Field):
     expected_types = int
 
+    def to_representation(self, value):
+        return int(value)
+
 
 class BooleanField(Field):
     expected_types = bool
+
+    def to_representation(self, value):
+        return bool(value)
