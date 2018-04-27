@@ -38,7 +38,7 @@ class UsersView(web.View):
             return web.json_response(messages)
 
 
-class UserView(views.ParticularView):
+class UserView(views.DetailView):
     model = user
     serializer_class = UserSerializer
     # queryset = message.c.text == 'Hello'

@@ -35,7 +35,7 @@ class BaseView(web.View):
         return res
 
 
-class ParticularView(BaseView):
+class DetailView(BaseView):
     async def get(self):
         pk = self.request.match_info['pk']
         model = self.get_model()
