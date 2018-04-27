@@ -68,3 +68,7 @@ class CharField(Field):
 
 class IntegerField(Field):
     expected_types = int
+
+
+class BooleanField(Field):
+    expected_types = bool

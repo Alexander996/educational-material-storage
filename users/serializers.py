@@ -9,3 +9,4 @@ class UserSerializer(Serializer):
     first_name = fields.CharField(required=False)
     last_name = fields.CharField(required=False)
     role = fields.IntegerField()
+    blocked = fields.BooleanField(read_only=True)
