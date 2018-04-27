@@ -1,4 +1,4 @@
-from utils.fields import Field, empty
+from utils.fields import Field, Empty
 
 
 class SerializerMeta(type):
@@ -18,27 +18,25 @@ class SerializerMeta(type):
 
 
 class Serializer(Field, metaclass=SerializerMeta):
-    def __init__(self, data=empty, **kwargs):
+    def __init__(self, data=Empty, **kwargs):
         self.initial_data = data
-        self.validated_data = None
+        self.validated_data = {}
         self.errors = {}
         super(Serializer, self).__init__(**kwargs)
 
     def is_valid(self):
-        data = {}
+        for field_name, field in self.serializer_fields.items():
+            if field.read_only:
+                continue
 
-        for field, value in self.initial_data.items():
-            if field in self.fields.keys() and field != 'id':
-                data[field] = value
+            initial_value = self.initial_data.get(field_name, Empty)
+            if not field.required and initial_value is Empty:
+                continue
 
-        for field_name, field in self.fields.items():
-            field.validate(data.get(field_name, empty))
+            value = field.validate(initial_value)
             if field.validation_error is not None:
                 self.errors[field_name] = field.validation_error
+            else:
+                self.validated_data[field_name] = value
 
-        self.validated_data = data
         return not self.errors
-
-    @property
-    def fields(self):
-        return self.serializer_fields
