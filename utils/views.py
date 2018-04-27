@@ -65,9 +65,7 @@ class DetailView(BaseView):
 
         request_data = await self.request.json()
         serializer = serializer(data=request_data)
-
-        if not serializer.is_valid():
-            return web.json_response(serializer.errors, status=400)
+        serializer.is_valid()
 
         async with self.request.app['db'].acquire() as conn:
             where_params = model.c.id == pk

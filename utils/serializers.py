@@ -1,3 +1,4 @@
+from utils.exceptions import ValidationError
 from utils.fields import Field, Empty
 
 
@@ -39,4 +40,5 @@ class Serializer(Field, metaclass=SerializerMeta):
             else:
                 self.validated_data[field_name] = value
 
-        return not self.errors
+        if self.errors:
+            raise ValidationError(self.errors)
