@@ -1,4 +1,8 @@
+from json import JSONDecodeError
+
 from aiohttp import web
+
+from utils.exceptions import ValidationError
 
 
 class BaseView(web.View):
@@ -70,7 +74,11 @@ class DetailView(BaseView):
     async def put(self):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
-            request_data = await self.request.json()
+            try:
+                request_data = await self.request.json()
+            except JSONDecodeError:
+                raise ValidationError(dict(detail='JSON decode error'))
+
             serializer = serializer(data=request_data)
             serializer.is_valid()
 
