@@ -64,9 +64,6 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
                 continue
 
             initial_value = self.initial_data.get(field_name, Empty)
-            if not field.required and initial_value is Empty:
-                continue
-
             value = field.validate(initial_value)
             if field.validation_error is not None:
                 errors[field_name] = field.validation_error
@@ -172,7 +169,7 @@ class ModelSerializerMeta(SerializerMeta):
                 continue
 
             field_cls = mcs._fields_mapping[c.type.__class__]
-            default = c.default if c.default is not None else Empty
+            default = c.default.arg if c.default is not None else Empty
             read_only = True if c.name == 'id' else False
             field = field_cls(allow_null=c.nullable, default=default, read_only=read_only)
             attrs[c.name] = field

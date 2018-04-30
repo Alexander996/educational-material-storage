@@ -53,9 +53,9 @@ class Field(object):
             if value is not Empty:
                 return True, value
             elif self.default is not Empty:
-                return True, self.default
+                return False, self.default
             elif self.allow_null:
-                return True, None
+                return False, None
 
     def set_error(self, key, **kwargs):
         msg = self.error_messages[key]
@@ -69,18 +69,18 @@ class CharField(Field):
     expected_types = str
 
     def to_representation(self, value):
-        return str(value)
+        return str(value) if value is not None else None
 
 
 class IntegerField(Field):
     expected_types = int
 
     def to_representation(self, value):
-        return int(value)
+        return int(value) if value is not None else None
 
 
 class BooleanField(Field):
     expected_types = bool
 
     def to_representation(self, value):
-        return bool(value)
+        return bool(value) if value is not None else None

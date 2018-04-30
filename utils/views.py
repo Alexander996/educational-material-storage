@@ -36,7 +36,7 @@ class BaseView(web.View):
 
     def build_query(self, method, *args, **kwargs):
         func = getattr(self, '_build_' + method)
-        query = func(self.get_queryset(), *args, **kwargs)
+        query = func(*args, **kwargs)
         return query
 
     def _build_select(self, queryset):
@@ -45,6 +45,11 @@ class BaseView(web.View):
             query = model.select().where(queryset)
         else:
             query = model.select()
+        return query
+
+    def _build_create(self, values):
+        model = self.get_model()
+        query = model.insert().values(**values)
         return query
 
     def _build_update(self, queryset, values):
@@ -67,7 +72,8 @@ class DetailView(BaseView):
     async def get(self):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer()
-            query = self.build_query('select')
+            queryset = self.get_queryset()
+            query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
@@ -75,6 +81,7 @@ class DetailView(BaseView):
     async def put(self):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
+            queryset = self.get_queryset()
             try:
                 request_data = await self.request.json()
             except JSONDecodeError:
@@ -83,10 +90,10 @@ class DetailView(BaseView):
             serializer = serializer(data=request_data)
             serializer.is_valid()
 
-            query = self.build_query('update', values=serializer.validated_data)
+            query = self.build_query('update', values=serializer.validated_data, queryset=queryset)
             await conn.execute(query)
 
-            query = self.build_query('select')
+            query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
@@ -99,7 +106,30 @@ class ListView(BaseView):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
             serializer = serializer(many=True)
-            query = self.build_query('select')
+            queryset = self.get_queryset()
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            return web.json_response(data)
+
+    async def post(self):
+        async with self.request.app['db'].acquire() as conn:
+            serializer = self.get_serializer_class()
+            try:
+                request_data = await self.request.json()
+            except JSONDecodeError:
+                raise ValidationError(dict(detail='JSON decode error'))
+
+            serializer = serializer(data=request_data)
+            serializer.is_valid()
+
+            query = self.build_query('create', values=serializer.validated_data)
+            insert = await conn.execute(query)
+
+            model = self.get_model()
+            queryset = model.c.id == insert.lastrowid
+
+            query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
