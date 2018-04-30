@@ -41,4 +41,4 @@ class UsersView(web.View):
 class UserView(views.DetailView):
     model = User
     serializer_class = UserSerializer
-    # queryset = message.c.text == 'Hello'
+    # queryset = User.c.username == 'admin'
