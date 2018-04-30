@@ -79,6 +79,14 @@ class DetailView(BaseView):
             return web.json_response(data)
 
     async def put(self):
+        response = await self._update(partial=False)
+        return response
+
+    async def patch(self):
+        response = await self._update(partial=True)
+        return response
+
+    async def _update(self, partial=False):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
             queryset = self.get_queryset()
@@ -88,7 +96,7 @@ class DetailView(BaseView):
                 raise ValidationError(dict(detail='JSON decode error'))
 
             serializer = serializer(data=request_data)
-            serializer.is_valid()
+            serializer.update_validate(partial=partial)
 
             query = self.build_query('update', values=serializer.validated_data, queryset=queryset)
             await conn.execute(query)
@@ -121,7 +129,7 @@ class ListView(BaseView):
                 raise ValidationError(dict(detail='JSON decode error'))
 
             serializer = serializer(data=request_data)
-            serializer.is_valid()
+            serializer.create_validate()
 
             query = self.build_query('create', values=serializer.validated_data)
             insert = await conn.execute(query)

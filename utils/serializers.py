@@ -56,7 +56,13 @@ class SerializerMeta(type):
 
 
 class Serializer(BaseSerializer, metaclass=SerializerMeta):
-    def is_valid(self):
+    def create_validate(self):
+        self.is_valid('create')
+
+    def update_validate(self, partial=False):
+        self.is_valid('update', partial=partial)
+
+    def is_valid(self, method, partial=False):
         errors = {}
 
         for field_name, field in self.fields.items():
@@ -64,6 +70,14 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
                 continue
 
             initial_value = self.initial_data.get(field_name, Empty)
+            if method == 'update':
+                if initial_value is Empty:
+                    if partial:
+                        continue
+                    else:
+                        if not field.required:
+                            continue
+
             value = field.validate(initial_value)
             if field.validation_error is not None:
                 errors[field_name] = field.validation_error
