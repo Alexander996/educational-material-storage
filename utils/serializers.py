@@ -10,6 +10,35 @@ from utils.fields import (
 )
 
 
+class BaseSerializer(Field):
+    validated_data = {}
+
+    def __new__(cls, *args, **kwargs):
+        if kwargs.pop('many', False):
+            return cls.many_init(*args, **kwargs)
+        return super(BaseSerializer, cls).__new__(cls)
+
+    def __init__(self, data=Empty, **kwargs):
+        self.initial_data = data
+        super(BaseSerializer, self).__init__(**kwargs)
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        child_serializer = cls(*args, **kwargs)
+        list_kwargs = {'child': child_serializer}
+        list_kwargs.update({
+            key: value for key, value in kwargs.items()
+        })
+        return ListSerializer(*args, **list_kwargs)
+
+    @property
+    def fields(self):
+        return self._serializer_fields
+
+    def __repr__(self):
+        return '{cls}'.format(cls=self.__class__)
+
+
 class SerializerMeta(type):
     def __new__(mcs, name, bases, attrs):
         fields = [(field_name, attrs.pop(field_name))
@@ -26,16 +55,7 @@ class SerializerMeta(type):
         return super(SerializerMeta, mcs).__new__(mcs, name, bases, attrs)
 
 
-class Serializer(Field, metaclass=SerializerMeta):
-    def __init__(self, data=Empty, **kwargs):
-        self.initial_data = data
-        self.validated_data = {}
-        super(Serializer, self).__init__(**kwargs)
-
-    @property
-    def fields(self):
-        return self._serializer_fields
-
+class Serializer(BaseSerializer, metaclass=SerializerMeta):
     def is_valid(self):
         errors = {}
 
@@ -61,14 +81,40 @@ class Serializer(Field, metaclass=SerializerMeta):
             raise HTTPNotFound
 
         json = {}
+        row = await result.fetchone()
+        for field_name, value in row.items():
+            field = self.fields.get(field_name)
+            if field is None or field.write_only:
+                continue
+
+            json_value = field.to_representation(value)
+            json[field_name] = json_value
+
+        return json
+
+
+class ListSerializer(BaseSerializer, metaclass=SerializerMeta):
+    _child = None
+
+    def __init__(self, *args, **kwargs):
+        self._child = kwargs.pop('child', None)
+        super(ListSerializer, self).__init__(*args, **kwargs)
+
+    async def to_json(self, result):
+        if result.rowcount == 0:
+            raise HTTPNotFound
+
+        json = []
         async for row in result:
+            row_json = {}
             for field_name, value in row.items():
-                field = self.fields.get(field_name)
+                field = self._child.fields.get(field_name)
                 if field is None or field.write_only:
                     continue
 
                 json_value = field.to_representation(value)
-                json[field_name] = json_value
+                row_json[field_name] = json_value
+            json.append(row_json)
 
         return json
 

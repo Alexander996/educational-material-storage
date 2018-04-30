@@ -6,7 +6,7 @@ from utils.exceptions import ValidationError
 
 
 class BaseView(web.View):
-    _detail = False
+    _detail = None
 
     model = None
     queryset = None
@@ -14,6 +14,7 @@ class BaseView(web.View):
 
     @property
     def detail(self):
+        assert self._detail is not None, 'Set _detail in {}'.format(self.__class__.__name__)
         return self._detail
 
     def get_model(self):
@@ -85,6 +86,19 @@ class DetailView(BaseView):
             query = self.build_query('update', values=serializer.validated_data)
             await conn.execute(query)
 
+            query = self.build_query('select')
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            return web.json_response(data)
+
+
+class ListView(BaseView):
+    _detail = False
+
+    async def get(self):
+        async with self.request.app['db'].acquire() as conn:
+            serializer = self.get_serializer_class()
+            serializer = serializer(many=True)
             query = self.build_query('select')
             result = await conn.execute(query)
             data = await serializer.to_json(result)

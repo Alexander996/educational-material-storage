@@ -7,7 +7,10 @@ from users.serializers import UserSerializer
 from utils import views
 
 
-class UsersView(web.View):
+class UsersView(views.ListView):
+    model = User
+    serializer_class = UserSerializer
+
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
             data = await self.request.json()
@@ -23,19 +26,6 @@ class UsersView(web.View):
                         value = value.isoformat()
                     res[attr] = value
             return web.json_response(res, status=201)
-
-    async def get(self):
-        messages = []
-        async with self.request.app['db'].acquire() as conn:
-            async for row in conn.execute(User.select()):
-                res = {}
-                for attr, value in row.items():
-                    if type(value) == datetime:
-                        value = value.isoformat()
-                    res[attr] = value
-                messages.append(res)
-
-            return web.json_response(messages)
 
 
 class UserView(views.DetailView):
