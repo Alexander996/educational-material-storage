@@ -1,5 +1,5 @@
 from project.db import init_mysql, init_redis, close_mysql, close_redis
-from users.routes import setup_routes
+from project.routes import setup_routes
 
 
 def configure_app(app):

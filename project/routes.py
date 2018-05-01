@@ -6,7 +6,7 @@ from utils.auth_token.views import AuthTokenView
 
 def setup_routes(app):
     app.add_routes([
-        web.view('/users/', UsersView),
-        web.view(r'/users/{pk:\d+}/', UserView),
-        web.view('/login/', AuthTokenView),
+        web.view('/api/login/', AuthTokenView),
+        web.view('/api/users/', UsersView),
+        web.view(r'/api/users/{pk:\d+}/', UserView),
     ])
