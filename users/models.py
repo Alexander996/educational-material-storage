@@ -7,6 +7,7 @@ User = sa.Table(
     sa.Column('id', sa.Integer, primary_key=True),
     sa.Column('username', sa.String(200), nullable=False, unique=True),
     sa.Column('password', sa.String(200), nullable=False),
+    sa.Column('email', sa.String(200), nullable=False),
     sa.Column('first_name', sa.String(200)),
     sa.Column('last_name', sa.String(200)),
     sa.Column('role', sa.Integer, nullable=False),

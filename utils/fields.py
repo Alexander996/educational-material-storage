@@ -1,3 +1,6 @@
+import re
+
+
 class Empty(object):
     pass
 
@@ -84,3 +87,21 @@ class BooleanField(Field):
 
     def to_representation(self, value):
         return bool(value) if value is not None else None
+
+
+class EmailField(Field):
+    expected_types = str
+
+    def validate(self, value):
+        value = super(EmailField, self).validate(value)
+        if self.validation_error is not None:
+            return value
+
+        pattern = re.compile('^[-a-z0-9_.]+@([-a-z0-9]+\.)+[a-z]{2,6}$')
+        is_valid = pattern.match(value)
+        if not is_valid:
+            self.validation_error = 'Email not valid'
+        return value
+
+    def to_representation(self, value):
+        return str(value) if value is not None else None
