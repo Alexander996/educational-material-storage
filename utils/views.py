@@ -47,6 +47,11 @@ class BaseView(web.View):
             query = model.select()
         return query
 
+    def _build_delete(self, queryset):
+        model = self.get_model()
+        query = model.delete().where(queryset)
+        return query
+
     def _build_create(self, values):
         model = self.get_model()
         query = model.insert().values(**values)
@@ -77,6 +82,13 @@ class DetailView(BaseView):
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
+
+    async def delete(self):
+        async with self.request.app['db'].acquire() as conn:
+            queryset = self.get_queryset()
+            query = self.build_query('delete', queryset=queryset)
+            await conn.execute(query)
+            return web.Response(status=204)
 
     async def put(self):
         response = await self._update(partial=False)
