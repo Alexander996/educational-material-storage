@@ -1,4 +1,4 @@
-from users.models import User
+from apps.users.models import User
 from utils import fields
 from utils.serializers import ModelSerializer
 

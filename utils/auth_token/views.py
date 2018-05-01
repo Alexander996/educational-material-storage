@@ -1,6 +1,6 @@
 from aiohttp import web
 
-from users.models import User
+from apps.users.models import User
 from utils.auth_token.serializers import AuthTokenSerializer
 from utils.exceptions import ValidationError
 from utils.hash import generate_token

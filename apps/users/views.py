@@ -1,5 +1,6 @@
-from users.models import User
-from users.serializers import UserSerializer
+from apps.users.models import User
+
+from apps.users.serializers import UserSerializer
 from utils import views
 
 

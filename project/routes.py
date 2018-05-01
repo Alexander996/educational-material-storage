@@ -1,6 +1,6 @@
 from aiohttp import web
 
-from users.views import UsersView, UserView
+from apps.users.views import UsersView, UserView
 from utils.auth_token.views import AuthTokenView
 
 
