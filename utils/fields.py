@@ -1,6 +1,6 @@
 import re
 
-from utils.hashes import hash_password
+from utils.hash import hash_password
 
 
 class Empty(object):

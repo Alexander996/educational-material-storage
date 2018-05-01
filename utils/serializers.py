@@ -20,6 +20,7 @@ class BaseSerializer(Field):
 
     def __init__(self, data=Empty, **kwargs):
         self.initial_data = data
+        self.context = kwargs.pop('context', None)
         super(BaseSerializer, self).__init__(**kwargs)
 
     @classmethod
