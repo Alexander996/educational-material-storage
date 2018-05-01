@@ -110,8 +110,9 @@ class DetailView(BaseView):
             serializer = serializer(data=request_data)
             serializer.update_validate(partial=partial)
 
-            query = self.build_query('update', values=serializer.validated_data, queryset=queryset)
-            await conn.execute(query)
+            if serializer.validated_data:
+                query = self.build_query('update', values=serializer.validated_data, queryset=queryset)
+                await conn.execute(query)
 
             query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)

@@ -11,8 +11,6 @@ from utils.fields import (
 
 
 class BaseSerializer(Field):
-    validated_data = {}
-
     def __new__(cls, *args, **kwargs):
         if kwargs.pop('many', False):
             return cls.many_init(*args, **kwargs)
@@ -21,6 +19,7 @@ class BaseSerializer(Field):
     def __init__(self, data=Empty, **kwargs):
         self.initial_data = data
         self.context = kwargs.pop('context', None)
+        self.validated_data = {}
         super(BaseSerializer, self).__init__(**kwargs)
 
     @classmethod
