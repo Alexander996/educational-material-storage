@@ -1,5 +1,8 @@
+from utils.permissions import IsAuthenticated
+
 HOST = '127.0.0.1'
 PORT = 8080
+
 
 DATABASE = {
     'user': 'storage',
@@ -14,3 +17,6 @@ REDIS = {
     'address': 'redis://localhost',
     'encoding': 'utf-8',
 }
+
+
+DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]

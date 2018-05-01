@@ -5,8 +5,10 @@ from aiohttp import web
 from apps.users.models import User
 
 from apps.users.serializers import UserSerializer
+from project.permissions import IsAdmin
 from utils import views
 from utils.exceptions import ValidationError
+from utils.permissions import AllowAny, permission_classes, IsAuthenticated
 
 user_routes = web.RouteTableDef()
 
@@ -15,6 +17,13 @@ user_routes = web.RouteTableDef()
 class UsersView(views.ListView):
     model = User
     serializer_class = UserSerializer
+
+    @staticmethod
+    def get_permission_classes(request):
+        if request.method == 'POST':
+            return [AllowAny]
+        else:
+            return [IsAuthenticated]
 
     def get_queryset(self):
         blocked = self.request.query.get('blocked')
@@ -29,13 +38,22 @@ class UserView(views.DetailView):
     model = User
     serializer_class = UserSerializer
 
+    @staticmethod
+    def get_permission_classes(request):
+        if request.method == 'GET':
+            return [IsAuthenticated]
+        else:
+            return [IsAdmin]
+
 
 @user_routes.post(r'/api/users/{pk:\d+}/block/')
+@permission_classes([IsAdmin])
 async def block_user(request):
     return await change_user_status(request, blocked=True)
 
 
 @user_routes.post(r'/api/users/{pk:\d+}/unblock/')
+@permission_classes([IsAdmin])
 async def unblock_user(request):
     return await change_user_status(request, blocked=False)
 
@@ -49,11 +67,13 @@ async def change_user_status(request, blocked=False):
 
 
 @user_routes.post('/api/users/check_username/')
+@permission_classes([AllowAny])
 async def check_username(request):
     return await check_user_field(request, field_name='username')
 
 
 @user_routes.post('/api/users/check_email/')
+@permission_classes([AllowAny])
 async def check_email(request):
     return await check_user_field(request, field_name='email')
 
