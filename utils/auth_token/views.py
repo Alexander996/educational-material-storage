@@ -14,7 +14,7 @@ class AuthTokenView(BaseView):
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
             redis = self.request.app['redis']
-            data = await self.request.json()
+            data = await self.get_json_data()
             serializer = self.serializer_class(data=data)
             serializer.create_validate()
             queryset = (User.c.username == serializer.validated_data['username']) &\

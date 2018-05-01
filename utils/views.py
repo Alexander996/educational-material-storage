@@ -2,8 +2,6 @@ from json import JSONDecodeError
 
 from aiohttp import web
 
-from utils.exceptions import ValidationError
-
 
 class BaseView(web.View):
     _detail = None
@@ -70,6 +68,13 @@ class BaseView(web.View):
         assert self.serializer_class is not None, 'Set serializer_class in {}'.format(self.__class__.__name__)
         return self.serializer_class
 
+    async def get_json_data(self):
+        try:
+            data = await self.request.json()
+        except JSONDecodeError:
+            data = {}
+        return data
+
 
 class DetailView(BaseView):
     _detail = True
@@ -102,10 +107,7 @@ class DetailView(BaseView):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
             queryset = self.get_queryset()
-            try:
-                request_data = await self.request.json()
-            except JSONDecodeError:
-                raise ValidationError(dict(detail='JSON decode error'))
+            request_data = await self.get_json_data()
 
             serializer = serializer(data=request_data)
             serializer.update_validate(partial=partial)
@@ -136,10 +138,7 @@ class ListView(BaseView):
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer_class()
-            try:
-                request_data = await self.request.json()
-            except JSONDecodeError:
-                raise ValidationError(dict(detail='JSON decode error'))
+            request_data = await self.get_json_data()
 
             serializer = serializer(data=request_data)
             serializer.create_validate()
