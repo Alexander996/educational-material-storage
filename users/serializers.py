@@ -4,7 +4,7 @@ from utils.serializers import ModelSerializer
 
 
 class UserSerializer(ModelSerializer):
-    password = fields.CharField(write_only=True)
+    password = fields.PasswordField(write_only=True)
     email = fields.EmailField()
 
     class Meta:

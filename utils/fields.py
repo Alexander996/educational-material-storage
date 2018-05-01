@@ -1,5 +1,7 @@
 import re
 
+from utils.hashes import hash_password
+
 
 class Empty(object):
     pass
@@ -102,6 +104,21 @@ class EmailField(Field):
         if not is_valid:
             self.validation_error = 'Email not valid'
         return value
+
+    def to_representation(self, value):
+        return str(value) if value is not None else None
+
+
+class PasswordField(Field):
+    expected_types = str
+
+    def validate(self, value):
+        value = super(PasswordField, self).validate(value)
+        if self.validation_error is not None:
+            return value
+
+        password = hash_password(value)
+        return password
 
     def to_representation(self, value):
         return str(value) if value is not None else None

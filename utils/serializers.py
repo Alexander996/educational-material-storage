@@ -112,9 +112,6 @@ class ListSerializer(BaseSerializer, metaclass=SerializerMeta):
         super(ListSerializer, self).__init__(*args, **kwargs)
 
     async def to_json(self, result):
-        if result.rowcount == 0:
-            raise HTTPNotFound
-
         json = []
         async for row in result:
             row_json = {}
