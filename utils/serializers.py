@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from aiohttp.web_exceptions import HTTPNotFound
 
 from utils.exceptions import ValidationError
-from utils.fields import Field, Empty
+from utils.fields import Field, Empty, PasswordField
 
 from utils.fields import (
     IntegerField, CharField, BooleanField
@@ -71,6 +71,9 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
 
             initial_value = self.initial_data.get(field_name, Empty)
             if method == 'update':
+                if isinstance(field, PasswordField):
+                    continue
+
                 if initial_value is Empty:
                     if partial:
                         continue
