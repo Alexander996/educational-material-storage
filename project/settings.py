@@ -1,3 +1,4 @@
+from utils.pagination import PagePagination
 from utils.permissions import IsAuthenticated
 
 HOST = '127.0.0.1'
@@ -20,3 +21,5 @@ REDIS = {
 
 
 DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]
+DEFAULT_PAGINATION_CLASS = PagePagination
+PAGE_LIMIT = 10

@@ -4,12 +4,15 @@ from apps.users.models import User
 from utils.auth_token.serializers import AuthTokenSerializer
 from utils.exceptions import ValidationError
 from utils.hash import generate_token
+from utils.permissions import AllowAny
 from utils.views import BaseView
 
 
 class AuthTokenView(BaseView):
-    serializer_class = AuthTokenSerializer
+    _detail = True
     model = User
+    serializer_class = AuthTokenSerializer
+    permission_classes = [AllowAny]
 
     async def post(self):
         async with self.request.app['db'].acquire() as conn:

@@ -2,6 +2,8 @@ from json import JSONDecodeError
 
 from aiohttp import web
 
+from project import settings
+
 
 class BaseView(web.View):
     _detail = None
@@ -9,6 +11,8 @@ class BaseView(web.View):
     model = None
     queryset = None
     serializer_class = None
+    pagination_class = settings.DEFAULT_PAGINATION_CLASS
+    page_limit = settings.PAGE_LIMIT
 
     @property
     def detail(self):
@@ -18,6 +22,9 @@ class BaseView(web.View):
     def get_model(self):
         assert self.model is not None, 'Set model in {}'.format(self.__class__.__name__)
         return self.model
+
+    def get_pagination_class(self):
+        return self.pagination_class(self.page_limit, self.request) if self.pagination_class is not None else None
 
     def get_queryset(self):
         queryset = None
@@ -131,6 +138,11 @@ class ListView(BaseView):
             serializer = serializer(many=True)
             queryset = self.get_queryset()
             query = self.build_query('select', queryset=queryset)
+
+            paginator = self.get_pagination_class()
+            if paginator is not None:
+                query = paginator.paginate_query(query)
+
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
