@@ -1,5 +1,3 @@
-from json import JSONDecodeError
-
 from aiohttp import web
 
 from project import settings
@@ -67,20 +65,13 @@ class BaseView(web.View):
         query = model.update().where(queryset).values(**values)
         return query
 
-    def get_serializer(self):
+    def get_serializer(self, *args, **kwargs):
         serializer = self.get_serializer_class()
-        return serializer()
+        return serializer(*args, **kwargs)
 
     def get_serializer_class(self):
         assert self.serializer_class is not None, 'Set serializer_class in {}'.format(self.__class__.__name__)
         return self.serializer_class
-
-    async def get_json_data(self):
-        try:
-            data = await self.request.json()
-        except JSONDecodeError:
-            data = {}
-        return data
 
 
 class DetailView(BaseView):
@@ -112,11 +103,10 @@ class DetailView(BaseView):
 
     async def _update(self, partial=False):
         async with self.request.app['db'].acquire() as conn:
-            serializer = self.get_serializer_class()
             queryset = self.get_queryset()
-            request_data = await self.get_json_data()
+            request_data = await get_json_data(self.request)
 
-            serializer = serializer(data=request_data)
+            serializer = self.get_serializer(data=request_data)
             serializer.update_validate(partial=partial)
 
             if serializer.validated_data:
@@ -134,8 +124,7 @@ class ListView(BaseView):
 
     async def get(self):
         async with self.request.app['db'].acquire() as conn:
-            serializer = self.get_serializer_class()
-            serializer = serializer(many=True)
+            serializer = self.get_serializer(many=True)
             queryset = self.get_queryset()
             query = self.build_query('select', queryset=queryset)
 
@@ -149,10 +138,8 @@ class ListView(BaseView):
 
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
-            serializer = self.get_serializer_class()
-            request_data = await self.get_json_data()
-
-            serializer = serializer(data=request_data)
+            request_data = await get_json_data(self.request)
+            serializer = self.get_serializer(data=request_data)
             serializer.create_validate()
 
             query = self.build_query('create', values=serializer.validated_data)
@@ -165,3 +152,11 @@ class ListView(BaseView):
             result = await conn.execute(query)
             data = await serializer.to_json(result)
             return web.json_response(data)
+
+
+async def get_json_data(request):
+    if not request.has_body:
+        return {}
+
+    data = await request.json()
+    return data

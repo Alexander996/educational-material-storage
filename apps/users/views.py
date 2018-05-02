@@ -1,5 +1,3 @@
-from json import JSONDecodeError
-
 from aiohttp import web
 
 from apps.users.models import User
@@ -9,6 +7,7 @@ from project.permissions import IsAdmin
 from utils import views
 from utils.exceptions import ValidationError
 from utils.permissions import AllowAny, permission_classes, IsAuthenticated
+from utils.views import get_json_data
 
 user_routes = web.RouteTableDef()
 
@@ -80,11 +79,7 @@ async def check_email(request):
 
 async def check_user_field(request, field_name):
     async with request.app['db'].acquire() as conn:
-        try:
-            data = await request.json()
-        except JSONDecodeError:
-            data = {}
-
+        data = await get_json_data(request)
         field = data.get(field_name)
         if field is None:
             raise ValidationError({field_name: 'This field is required'})
