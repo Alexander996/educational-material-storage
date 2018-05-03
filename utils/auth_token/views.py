@@ -1,11 +1,11 @@
-from aiohttp import web
+import binascii
+from aiohttp import web, os
 
 from apps.users.models import User
 from utils.auth_token.serializers import AuthTokenSerializer
 from utils.exceptions import ValidationError
-from utils.hash import generate_token
 from utils.permissions import AllowAny
-from utils.views import BaseView
+from utils.views import BaseView, get_json_data
 
 
 class AuthTokenView(BaseView):
@@ -17,7 +17,7 @@ class AuthTokenView(BaseView):
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
             redis = self.request.app['redis']
-            data = await self.get_json_data()
+            data = await get_json_data(self.request)
             serializer = self.serializer_class(data=data)
             serializer.create_validate()
             queryset = (User.c.username == serializer.validated_data['username']) &\
@@ -37,3 +37,7 @@ class AuthTokenView(BaseView):
                 token = await redis.hget(redis_user, 'token')
 
             return web.json_response(dict(token=token))
+
+
+def generate_token():
+    return binascii.hexlify(os.urandom(20)).decode()
