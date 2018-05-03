@@ -1,5 +1,7 @@
 import binascii
-from aiohttp import web, os
+import os
+
+from aiohttp import web
 
 from apps.users.models import User
 from utils.auth_token.serializers import AuthTokenSerializer

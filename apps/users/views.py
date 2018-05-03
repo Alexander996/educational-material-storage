@@ -5,7 +5,8 @@ from apps.users.models import User
 from apps.users.serializers import UserSerializer
 from project.permissions import IsAdmin
 from utils import views
-from utils.exceptions import ValidationError
+from utils.exceptions import ValidationError, PermissionDenied
+from utils.hash import hash_password
 from utils.permissions import AllowAny, permission_classes, IsAuthenticated
 from utils.views import get_json_data
 
@@ -43,6 +44,24 @@ class UserView(views.DetailView):
             return [IsAuthenticated]
         else:
             return [IsAdmin]
+
+
+@user_routes.post(r'/api/users/{pk:\d+}/change_password/')
+@permission_classes([IsAuthenticated])
+async def change_password(request):
+    async with request.app['db'].acquire() as conn:
+        pk = request.match_info['pk']
+        if int(pk) != request['user'].id:
+            raise PermissionDenied
+
+        data = await get_json_data(request)
+        password = data.get('password')
+        if password is None:
+            raise ValidationError(dict(password='This field is required'))
+
+        query = User.update().where(User.c.id == pk).values(password=hash_password(password))
+        await conn.execute(query)
+        return web.Response()
 
 
 @user_routes.post(r'/api/users/{pk:\d+}/block/')
