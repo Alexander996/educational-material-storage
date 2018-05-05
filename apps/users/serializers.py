@@ -1,4 +1,5 @@
 from apps.users.models import User, Registration
+from project.permissions import MODERATOR
 from utils import serializers
 
 
@@ -23,3 +24,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         exclude = ('password',)
         read_only_fields = ('blocked',)
+
+    async def is_valid(self, method, partial=False):
+        await super(UserSerializer, self).is_valid(method, partial=partial)
+
+        if method == 'update':
+            user = self.context['request']['user']
+            if user.role < MODERATOR:
+                del self.validated_data['role']

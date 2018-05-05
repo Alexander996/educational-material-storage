@@ -67,7 +67,7 @@ class BaseView(web.View):
 
     def get_serializer(self, *args, **kwargs):
         serializer = self.get_serializer_class()
-        return serializer(*args, **kwargs)
+        return serializer(*args, context={'request': self.request}, **kwargs)
 
     def get_serializer_class(self):
         assert self.serializer_class is not None, 'Set serializer_class in {}'.format(self.__class__.__name__)

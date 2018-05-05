@@ -21,7 +21,7 @@ class AuthTokenView(BaseView):
             redis = self.request.app['redis']
             data = await get_json_data(self.request)
             serializer = self.serializer_class(data=data)
-            serializer.create_validate()
+            await serializer.create_validate()
             queryset = (User.c.username == serializer.validated_data['username']) &\
                        (User.c.password == serializer.validated_data['password'])
 

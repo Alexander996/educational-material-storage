@@ -4,7 +4,7 @@ from aiohttp.web_exceptions import HTTPMethodNotAllowed
 from apps.users.models import User, Registration
 
 from apps.users.serializers import UserSerializer, RegistrationSerializer, UserCreateSerializer
-from project.permissions import IsModeratorOrAbove
+from project.permissions import IsModeratorOrAbove, MODERATOR
 from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.hash import hash_password
@@ -87,12 +87,20 @@ class UserView(views.DetailView):
     model = User
     serializer_class = UserSerializer
 
-    @staticmethod
-    def get_permission_classes(request):
-        if request.method == 'GET':
-            return [IsAuthenticated]
-        else:
-            return [IsModeratorOrAbove]
+    async def put(self):
+        self.check_permissions()
+        return await super(UserView, self).put()
+    
+    async def patch(self):
+        self.check_permissions()
+        return await super(UserView, self).patch()
+
+    def check_permissions(self):
+        user = self.request['user']
+        if user.role < MODERATOR:
+            pk = self.request.match_info['pk']
+            if int(pk) != user.id:
+                raise PermissionDenied
 
     async def delete(self):
         raise HTTPMethodNotAllowed
