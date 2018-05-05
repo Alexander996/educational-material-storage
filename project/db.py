@@ -1,17 +1,24 @@
+import copy
 from aiomysql.sa import create_engine
 from aioredis import create_redis
-
-from project.settings import DATABASE, REDIS
+from project import settings
 
 
 # Connections initialization
 async def init_mysql(app):
-    mysql_engine = await create_engine(**DATABASE)
+    mysql_engine = await create_engine(**settings.DATABASE)
+    app['db'] = mysql_engine
+
+
+async def test_init_mysql(app):
+    db_settings = copy.deepcopy(settings.DATABASE)
+    db_settings['autocommit'] = False
+    mysql_engine = await create_engine(**db_settings)
     app['db'] = mysql_engine
 
 
 async def init_redis(app):
-    redis_engine = await create_redis(**REDIS)
+    redis_engine = await create_redis(**settings.REDIS)
     app['redis'] = redis_engine
 
 

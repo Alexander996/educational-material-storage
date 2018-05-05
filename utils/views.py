@@ -154,7 +154,7 @@ class ListView(BaseView):
 
 
 async def get_json_data(request):
-    if not request.has_body:
+    if not request.can_read_body:
         return {}
 
     data = await request.json()
