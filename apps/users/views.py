@@ -1,9 +1,10 @@
 from aiohttp import web
+from aiohttp.web_exceptions import HTTPMethodNotAllowed
 
-from apps.users.models import User
+from apps.users.models import User, Registration
 
-from apps.users.serializers import UserSerializer
-from project.permissions import IsAdmin
+from apps.users.serializers import UserSerializer, RegistrationSerializer, UserCreateSerializer
+from project.permissions import IsModeratorOrAbove
 from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.hash import hash_password
@@ -11,6 +12,20 @@ from utils.permissions import AllowAny, permission_classes, IsAuthenticated
 from utils.views import get_json_data
 
 user_routes = web.RouteTableDef()
+
+
+@user_routes.view('/api/registration/')
+class RegistrationView(views.ListView):
+    model = Registration
+    serializer_class = RegistrationSerializer
+    queryset = Registration.c.is_completed == False
+
+    @staticmethod
+    def get_permission_classes(request):
+        if request.method == 'POST':
+            return [AllowAny]
+        else:
+            return [IsModeratorOrAbove]
 
 
 @user_routes.view('/api/users/')
@@ -21,7 +36,7 @@ class UsersView(views.ListView):
     @staticmethod
     def get_permission_classes(request):
         if request.method == 'POST':
-            return [AllowAny]
+            return [IsModeratorOrAbove]
         else:
             return [IsAuthenticated]
 
@@ -31,6 +46,44 @@ class UsersView(views.ListView):
             return User.c.blocked == True
         else:
             return User.c.blocked == False
+
+    async def post(self):
+        async with self.request.app['db'].acquire() as conn:
+            model = self.get_model()
+            request_data = await get_json_data(self.request)
+            serializer = UserCreateSerializer(data=request_data)
+            serializer.create_validate()
+
+            queryset = (Registration.c.id == serializer.validated_data['registration']) &\
+                       (Registration.c.is_completed == False)
+            query = Registration.select().where(queryset)
+            result = await conn.execute(query)
+            if result.rowcount == 0:
+                raise ValidationError(dict(registration='404 Not Found'))
+
+            registration = await result.fetchone()
+            data = {
+                'username': registration.username,
+                'password': registration.password,
+                'email': registration.email,
+                'first_name': registration.first_name,
+                'last_name': registration.last_name,
+                'role': serializer.validated_data['role']
+            }
+
+            query = self.build_query('create', values=data)
+            insert = await conn.execute(query)
+
+            query = Registration.update().where(queryset).values(is_completed=True)
+            await conn.execute(query)
+
+            queryset = model.c.id == insert.lastrowid
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+
+            serializer = UserSerializer()
+            data = await serializer.to_json(result)
+            return web.json_response(data, status=201)
 
 
 @user_routes.view(r'/api/users/{pk:\d+}/')
@@ -43,7 +96,10 @@ class UserView(views.DetailView):
         if request.method == 'GET':
             return [IsAuthenticated]
         else:
-            return [IsAdmin]
+            return [IsModeratorOrAbove]
+
+    async def delete(self):
+        raise HTTPMethodNotAllowed
 
 
 @user_routes.post(r'/api/users/{pk:\d+}/change_password/')
@@ -65,13 +121,13 @@ async def change_password(request):
 
 
 @user_routes.post(r'/api/users/{pk:\d+}/block/')
-@permission_classes([IsAdmin])
+@permission_classes([IsModeratorOrAbove])
 async def block_user(request):
     return await change_user_status(request, blocked=True)
 
 
 @user_routes.post(r'/api/users/{pk:\d+}/unblock/')
-@permission_classes([IsAdmin])
+@permission_classes([IsModeratorOrAbove])
 async def unblock_user(request):
     return await change_user_status(request, blocked=False)
 

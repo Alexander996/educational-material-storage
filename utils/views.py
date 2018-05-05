@@ -138,6 +138,7 @@ class ListView(BaseView):
 
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
+            model = self.get_model()
             request_data = await get_json_data(self.request)
             serializer = self.get_serializer(data=request_data)
             serializer.create_validate()
@@ -145,13 +146,11 @@ class ListView(BaseView):
             query = self.build_query('create', values=serializer.validated_data)
             insert = await conn.execute(query)
 
-            model = self.get_model()
             queryset = model.c.id == insert.lastrowid
-
             query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)
             data = await serializer.to_json(result)
-            return web.json_response(data)
+            return web.json_response(data, status=201)
 
 
 async def get_json_data(request):

@@ -3,11 +3,7 @@ import sqlalchemy as sa
 from aiohttp.web_exceptions import HTTPNotFound
 
 from utils.exceptions import ValidationError
-from utils.fields import Field, Empty, PasswordField
-
-from utils.fields import (
-    IntegerField, CharField, BooleanField
-)
+from utils.fields import *
 
 
 class BaseSerializer(Field):
@@ -172,6 +168,13 @@ class ModelSerializerMeta(SerializerMeta):
         assert not (meta_fields is None and meta_exclude is None), '{}.Meta must have at least one attribute ' \
                                                                    'fields or exclude'.format(name)
 
+        meta_read_only_fields = getattr(Meta, 'read_only_fields', None)
+        if meta_read_only_fields is not None and not isinstance(meta_read_only_fields, (list, tuple)):
+            raise ValueError('{}.Meta.read_only_fields must be list or tuple, not {}'
+                             .format(name, type(meta_exclude).__name__))
+
+        meta_read_only_fields = set(meta_read_only_fields) if meta_read_only_fields else None
+
         for c in model.columns:
             if attrs.get(c.name) is not None:
                 continue
@@ -184,7 +187,13 @@ class ModelSerializerMeta(SerializerMeta):
 
             field_cls = mcs._fields_mapping[c.type.__class__]
             default = c.default.arg if c.default is not None else Empty
-            read_only = True if c.name == 'id' else False
+            if c.name == 'id':
+                read_only = True
+            elif meta_read_only_fields is not None and c.name in meta_read_only_fields:
+                read_only = True
+            else:
+                read_only = False
+
             field = field_cls(allow_null=c.nullable, default=default, read_only=read_only)
             attrs[c.name] = field
 

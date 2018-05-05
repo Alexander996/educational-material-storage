@@ -1,13 +1,25 @@
-from apps.users.models import User
-from utils import fields
-from utils.serializers import ModelSerializer
+from apps.users.models import User, Registration
+from utils import serializers
 
 
-class UserSerializer(ModelSerializer):
-    password = fields.PasswordField(write_only=True)
-    email = fields.EmailField()
-    blocked = fields.BooleanField(read_only=True)
+class RegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.PasswordField(write_only=True)
+    email = serializers.EmailField()
+
+    class Meta:
+        model = Registration
+        exclude = ('is_completed',)
+
+
+class UserCreateSerializer(serializers.Serializer):
+    registration = serializers.IntegerField()
+    role = serializers.IntegerField()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
 
     class Meta:
         model = User
-        fields = '__all__'
+        exclude = ('password',)
+        read_only_fields = ('blocked',)
