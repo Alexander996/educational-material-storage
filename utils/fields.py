@@ -1,5 +1,8 @@
 import re
 
+from aiomysql.sa import create_engine
+
+from project.settings import DATABASE
 from utils.hash import hash_password
 
 
@@ -14,7 +17,7 @@ class Field(object):
         'required': 'This field is required'
     }
 
-    def __init__(self, required=None, allow_null=False,
+    def __init__(self, required=None, allow_null=False, model=None,
                  read_only=False, write_only=False, default=Empty):
 
         if required is None:
@@ -29,6 +32,7 @@ class Field(object):
         self.read_only = read_only
         self.write_only = write_only
         self.default = default
+        self.model = model
 
         self.validation_error = None
 
@@ -37,7 +41,7 @@ class Field(object):
                'read_only={self.read_only}, write_only={self.write_only}, ' \
                'default={self.default})'.format(self=self)
 
-    def validate(self, value):
+    async def validate(self, value):
         validated, value = self.validate_empty_value(value)
         if not validated:
             return value
@@ -94,8 +98,8 @@ class BooleanField(Field):
 class EmailField(Field):
     expected_types = str
 
-    def validate(self, value):
-        value = super(EmailField, self).validate(value)
+    async def validate(self, value):
+        value = await super(EmailField, self).validate(value)
         if self.validation_error is not None:
             return value
 
@@ -112,8 +116,8 @@ class EmailField(Field):
 class PasswordField(Field):
     expected_types = str
 
-    def validate(self, value):
-        value = super(PasswordField, self).validate(value)
+    async def validate(self, value):
+        value = await super(PasswordField, self).validate(value)
         if self.validation_error is not None:
             return value
 
@@ -122,3 +126,24 @@ class PasswordField(Field):
 
     def to_representation(self, value):
         return str(value) if value is not None else None
+
+
+class ForeignKeyField(Field):
+    expected_types = int
+
+    async def validate(self, value):
+        value = await super(ForeignKeyField, self).validate(value)
+        if self.validation_error is not None:
+            return value
+
+        model = self.model
+        mysql_engine = await create_engine(**DATABASE)
+        async with mysql_engine.acquire() as conn:
+            query = model.select().where(model.c.id == value)
+            result = await conn.execute(query)
+            if result.rowcount == 0:
+                self.validation_error = 'pk {} not found'.format(value)
+                return value
+
+            obj = await result.fetchone()
+            return obj

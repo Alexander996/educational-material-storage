@@ -107,7 +107,7 @@ class DetailView(BaseView):
             request_data = await get_json_data(self.request)
 
             serializer = self.get_serializer(data=request_data)
-            serializer.update_validate(partial=partial)
+            await serializer.update_validate(partial=partial)
 
             if serializer.validated_data:
                 query = self.build_query('update', values=serializer.validated_data, queryset=queryset)
@@ -141,7 +141,7 @@ class ListView(BaseView):
             model = self.get_model()
             request_data = await get_json_data(self.request)
             serializer = self.get_serializer(data=request_data)
-            serializer.create_validate()
+            await serializer.create_validate()
 
             query = self.build_query('create', values=serializer.validated_data)
             insert = await conn.execute(query)

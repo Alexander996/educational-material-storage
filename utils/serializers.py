@@ -52,13 +52,13 @@ class SerializerMeta(type):
 
 
 class Serializer(BaseSerializer, metaclass=SerializerMeta):
-    def create_validate(self):
-        self.is_valid('create')
+    async def create_validate(self):
+        await self.is_valid('create')
 
-    def update_validate(self, partial=False):
-        self.is_valid('update', partial=partial)
+    async def update_validate(self, partial=False):
+        await self.is_valid('update', partial=partial)
 
-    def is_valid(self, method, partial=False):
+    async def is_valid(self, method, partial=False):
         errors = {}
 
         for field_name, field in self.fields.items():
@@ -77,7 +77,7 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
                         if not field.required:
                             continue
 
-            value = field.validate(initial_value)
+            value = await field.validate(initial_value)
             if field.validation_error is not None:
                 errors[field_name] = field.validation_error
             else:

@@ -52,16 +52,12 @@ class UsersView(views.ListView):
             model = self.get_model()
             request_data = await get_json_data(self.request)
             serializer = UserCreateSerializer(data=request_data)
-            serializer.create_validate()
+            await serializer.create_validate()
 
-            queryset = (Registration.c.id == serializer.validated_data['registration']) &\
-                       (Registration.c.is_completed == False)
-            query = Registration.select().where(queryset)
-            result = await conn.execute(query)
-            if result.rowcount == 0:
-                raise ValidationError(dict(registration='404 Not Found'))
+            registration = serializer.validated_data['registration']
+            if registration.is_completed:
+                raise ValidationError(dict(detail='Registration is already completed'))
 
-            registration = await result.fetchone()
             data = {
                 'username': registration.username,
                 'password': registration.password,
@@ -74,7 +70,7 @@ class UsersView(views.ListView):
             query = self.build_query('create', values=data)
             insert = await conn.execute(query)
 
-            query = Registration.update().where(queryset).values(is_completed=True)
+            query = Registration.update().where(Registration.c.id == registration.id).values(is_completed=True)
             await conn.execute(query)
 
             queryset = model.c.id == insert.lastrowid

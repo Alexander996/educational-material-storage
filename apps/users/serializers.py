@@ -12,7 +12,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.Serializer):
-    registration = serializers.IntegerField()
+    registration = serializers.ForeignKeyField(model=Registration)
     role = serializers.IntegerField()
 
 
