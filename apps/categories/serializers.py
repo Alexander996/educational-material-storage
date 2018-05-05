@@ -1,11 +1,8 @@
 from apps.categories.models import Category
-from utils import fields
-from utils.serializers import ModelSerializer
+from utils import serializers
 
 
-class CategorySerializer(ModelSerializer):
-    deleted = fields.BooleanField(read_only=True)
-
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'

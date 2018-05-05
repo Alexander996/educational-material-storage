@@ -9,7 +9,7 @@ from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.hash import hash_password
 from utils.permissions import AllowAny, permission_classes, IsAuthenticated
-from utils.views import get_json_data
+from utils.views import get_json_data, validate_request_data
 
 user_routes = web.RouteTableDef()
 
@@ -114,10 +114,8 @@ async def change_password(request):
         if int(pk) != request['user'].id:
             raise PermissionDenied
 
-        data = await get_json_data(request)
-        password = data.get('password')
-        if password is None:
-            raise ValidationError(dict(password='This field is required'))
+        data = await validate_request_data(request, 'password')
+        password = data['password']
 
         query = User.update().where(User.c.id == pk).values(password=hash_password(password))
         await conn.execute(query)
@@ -158,16 +156,16 @@ async def check_email(request):
 
 async def check_user_field(request, field_name):
     async with request.app['db'].acquire() as conn:
-        data = await get_json_data(request)
-        field = data.get(field_name)
-        if field is None:
-            raise ValidationError({field_name: 'This field is required'})
+        data = await validate_request_data(request, field_name)
+        field = data[field_name]
 
         attr = getattr(User.c, field_name)
         query = User.select().where(attr == field)
         users = await conn.execute(query)
         if users.rowcount == 0:
+            await users.close()
             return web.json_response(dict(detail='{} свободен'.format(field_name)))
         else:
+            await users.close()
             return web.json_response(dict(detail='Пользователь с таким {} уже существует'.format(field_name)),
                                      status=400)

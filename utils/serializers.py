@@ -100,6 +100,7 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
             json_value = field.to_representation(value)
             json[field_name] = json_value
 
+        await result.close()
         return json
 
 

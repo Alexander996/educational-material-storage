@@ -1,6 +1,7 @@
 from aiohttp import web
 
 from project import settings
+from utils.exceptions import ValidationError
 
 
 class BaseView(web.View):
@@ -158,4 +159,19 @@ async def get_json_data(request):
         return {}
 
     data = await request.json()
+    return data
+
+
+async def validate_request_data(request, *args):
+    data = await get_json_data(request)
+    errors = {}
+    msg = 'This field is required'
+
+    for arg in args:
+        if data.get(arg) is None:
+            errors[arg] = msg
+
+    if errors:
+        raise ValidationError(errors)
+
     return data
