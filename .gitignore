@@ -2,3 +2,4 @@
 **/__pycache__
 alembic/versions/*
 !alembic/versions/__init__.py
+media

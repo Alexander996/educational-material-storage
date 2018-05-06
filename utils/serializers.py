@@ -97,10 +97,9 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
             if field is None or field.write_only:
                 continue
 
-            json_value = field.to_representation(value)
+            json_value = await field.to_representation(value)
             json[field_name] = json_value
 
-        await result.close()
         return json
 
 
@@ -113,17 +112,12 @@ class ListSerializer(BaseSerializer, metaclass=SerializerMeta):
 
     async def to_json(self, result):
         json = []
-        async for row in result:
-            row_json = {}
-            for field_name, value in row.items():
-                field = self._child.fields.get(field_name)
-                if field is None or field.write_only:
-                    continue
 
-                json_value = field.to_representation(value)
-                row_json[field_name] = json_value
+        for i in range(result.rowcount):
+            row_json = await self._child.to_json(result)
             json.append(row_json)
 
+        await result.close()
         return json
 
 
@@ -131,7 +125,8 @@ class ModelSerializerMeta(SerializerMeta):
     _fields_mapping = {
         sa.Integer: IntegerField,
         sa.String: CharField,
-        sa.Boolean: BooleanField
+        sa.Boolean: BooleanField,
+        sa.DateTime: DateTimeField,
     }
 
     def __new__(mcs, name, bases, attrs):
@@ -202,5 +197,14 @@ class ModelSerializerMeta(SerializerMeta):
 
 
 class ModelSerializer(Serializer, metaclass=ModelSerializerMeta):
-    pass
+    async def to_representation(self, value):
+        if value is None:
+            return None
+
+        model = self.Meta.model
+        db = CurrentDBConnection.get_db_connection()
+        async with db.acquire() as conn:
+            query = model.select().where(model.c.id == value)
+            result = await conn.execute(query)
+            return await self.to_json(result)
 

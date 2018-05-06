@@ -1,3 +1,5 @@
+import os
+
 from utils.pagination import PagePagination
 from utils.permissions import IsAuthenticated
 
@@ -23,3 +25,8 @@ REDIS = {
 DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]
 DEFAULT_PAGINATION_CLASS = PagePagination
 PAGE_LIMIT = 20
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = 'media'

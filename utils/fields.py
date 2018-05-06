@@ -1,8 +1,7 @@
 import re
+from datetime import datetime
 
-from aiomysql.sa import create_engine
-
-from project.settings import DATABASE
+from utils.db import CurrentDBConnection
 from utils.hash import hash_password
 
 
@@ -70,28 +69,28 @@ class Field(object):
         msg = self.error_messages[key]
         self.validation_error = msg.format(**kwargs)
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         pass
 
 
 class CharField(Field):
     expected_types = str
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         return str(value) if value is not None else None
 
 
 class IntegerField(Field):
     expected_types = int
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         return int(value) if value is not None else None
 
 
 class BooleanField(Field):
     expected_types = bool
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         return bool(value) if value is not None else None
 
 
@@ -109,7 +108,7 @@ class EmailField(Field):
             self.validation_error = 'Email not valid'
         return value
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         return str(value) if value is not None else None
 
 
@@ -124,7 +123,7 @@ class PasswordField(Field):
         password = hash_password(value)
         return password
 
-    def to_representation(self, value):
+    async def to_representation(self, value):
         return str(value) if value is not None else None
 
 
@@ -137,8 +136,8 @@ class ForeignKeyField(Field):
             return value
 
         model = self.model
-        mysql_engine = await create_engine(**DATABASE)
-        async with mysql_engine.acquire() as conn:
+        db = CurrentDBConnection.get_db_connection()
+        async with db.acquire() as conn:
             query = model.select().where(model.c.id == value)
             result = await conn.execute(query)
             if result.rowcount == 0:
@@ -146,4 +145,15 @@ class ForeignKeyField(Field):
                 return value
 
             obj = await result.fetchone()
-            return obj
+
+        return obj
+
+    async def to_representation(self, value):
+        return int(value) if value is not None else None
+
+
+class DateTimeField(Field):
+    expected_types = datetime
+
+    async def to_representation(self, value):
+        return value.isoformat() if value is not None else None

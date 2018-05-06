@@ -1,7 +1,9 @@
 from aiohttp import web
 
 from apps.categories.views import category_routes
+from apps.materials.views import material_routes
 from apps.users.views import user_routes
+from project.settings import MEDIA_ROOT
 from utils.auth_token.views import AuthTokenView
 
 
@@ -12,3 +14,4 @@ def setup_routes(app):
 
     app.add_routes(user_routes)
     app.add_routes(category_routes)
+    app.add_routes(material_routes)
