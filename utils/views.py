@@ -1,7 +1,13 @@
-from aiohttp import web
+import tempfile
+from datetime import datetime
+
+from aiohttp import web, hdrs
+from aiohttp.web_request import FileField
 
 from project import settings
+from project.settings import MEDIA_ROOT, MEDIA_URL, CHUNK_SIZE
 from utils.exceptions import ValidationError
+from utils.media import generate_path_to_file, generate_file_name
 
 
 class BaseView(web.View):
@@ -138,6 +144,9 @@ class ListView(BaseView):
             return web.json_response(data)
 
     async def post(self):
+        if self.request.content_type == 'multipart/form-data':
+            return await self.multipart_post()
+
         async with self.request.app['db'].acquire() as conn:
             model = self.get_model()
             request_data = await get_json_data(self.request)
@@ -153,12 +162,83 @@ class ListView(BaseView):
             data = await serializer.to_json(result)
             return web.json_response(data, status=201)
 
+    async def multipart_post(self):
+        async with self.request.app['db'].acquire() as conn:
+            now = datetime.now()
+            model = self.get_model()
+            if self.request.can_read_body:
+                data = await get_multipart_data(self.request)
+            else:
+                data = {}
+
+            serializer = self.get_serializer(data=data)
+            await serializer.create_validate()
+
+            files = serializer.file_fields
+            for file_name, file in files.items():
+                path = generate_path_to_file(MEDIA_ROOT, file.upload_to, now.year, now.month, now.day)
+                filename = generate_file_name(path, serializer.validated_data[file_name].filename)
+
+                with open('/'.join([path, filename]), 'wb') as f:
+                    while True:
+                        chunk = serializer.validated_data[file_name].file.readline(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+                url = '{scheme}://{host}/{media_url}/{upload_to}{y}/{m}/{d}/{file_name}' \
+                      .format(scheme=self.request.scheme, host=self.request.host, media_url=MEDIA_URL,
+                              upload_to=file.upload_to + '/' if file.upload_to is not None else '',
+                              y=now.year, m=now.month, d=now.day, file_name=filename)
+                serializer.validated_data[file_name] = url
+
+            query = model.insert().values(**serializer.validated_data)
+            insert = await conn.execute(query)
+
+            queryset = model.c.id == insert.lastrowid
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            return web.json_response(data, status=201)
+
 
 async def get_json_data(request):
     if not request.can_read_body:
         return {}
 
     data = await request.json()
+    return data
+
+
+async def get_multipart_data(request):
+    data = {}
+
+    reader = await request.multipart()
+    field = await reader.next()
+    while field is not None:
+        content_type = field.headers.get(hdrs.CONTENT_TYPE)
+
+        if field.filename:
+            tmp = tempfile.TemporaryFile()
+            chunk = await field.read_chunk(size=2 ** 16)
+            while chunk:
+                chunk = field.decode(chunk)
+                tmp.write(chunk)
+                chunk = await field.read_chunk(size=2 ** 16)
+            tmp.seek(0)
+
+            ff = FileField(field.name, field.filename,
+                           tmp, content_type, field.headers)
+            data[field.name] = ff
+        else:
+            value = await field.read(decode=True)
+            if content_type is None or \
+                    content_type.startswith('text/'):
+                charset = field.get_charset(default='utf-8')
+                value = value.decode(charset)
+            data[field.name] = value
+
+        field = await reader.next()
     return data
 
 

@@ -3,11 +3,16 @@ import os
 import binascii
 
 
-def generate_path_to_file(media_root, *args):
+def generate_path_to_file(media_root, upload_to, *args):
     if not os.path.exists(media_root):
         os.mkdir(media_root)
 
     path = media_root
+    if upload_to is not None:
+        path = '{}/{}'.format(path, upload_to)
+        if not os.path.exists(path):
+            os.mkdir(path)
+
     for arg in args:
         if not isinstance(arg, str):
             arg = str(arg)

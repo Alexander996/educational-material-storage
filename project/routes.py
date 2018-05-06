@@ -3,7 +3,6 @@ from aiohttp import web
 from apps.categories.views import category_routes
 from apps.materials.views import material_routes
 from apps.users.views import user_routes
-from project.settings import MEDIA_ROOT
 from utils.auth_token.views import AuthTokenView
 
 

@@ -37,9 +37,13 @@ class BaseSerializer(Field):
 
 class SerializerMeta(type):
     def __new__(mcs, name, bases, attrs):
-        fields = [(field_name, attrs.pop(field_name))
-                  for field_name, obj in list(attrs.items())
-                  if isinstance(obj, Field)]
+        fields = []
+        file_fields = []
+        for field_name, obj in list(attrs.items()):
+            if isinstance(obj, FileField):
+                file_fields.append((field_name, attrs[field_name]))
+            if isinstance(obj, Field):
+                fields.append((field_name, attrs.pop(field_name)))
 
         for base in reversed(bases):
             if hasattr(base, '_serializer_fields'):
@@ -47,7 +51,13 @@ class SerializerMeta(type):
                            in base._serializer_fields.items()
                            if field_name not in attrs]
 
+            if hasattr(base, 'file_fields'):
+                file_fields += [(field_name, obj) for field_name, obj
+                                in base.file_fields.items()
+                                if field_name not in attrs]
+
         attrs['_serializer_fields'] = dict(fields)
+        attrs['file_fields'] = dict(file_fields)
         return super(SerializerMeta, mcs).__new__(mcs, name, bases, attrs)
 
 
@@ -86,6 +96,35 @@ class Serializer(BaseSerializer, metaclass=SerializerMeta):
         if errors:
             raise ValidationError(errors)
 
+    async def validate(self, value):
+        errors = {}
+        data = {}
+
+        if value is Empty:
+            self.validation_error = 'This field is required'
+            return None
+
+        if not isinstance(value, dict):
+            self.validation_error = 'Must be dict object'
+            return None
+
+        for field_name, field in self.fields.items():
+            if field.read_only:
+                continue
+
+            initial_value = value.get(field_name, Empty)
+            value = await field.validate(initial_value)
+            if field.validation_error is not None:
+                errors[field_name] = field.validation_error
+            else:
+                data[field_name] = value
+
+        if errors:
+            self.validation_error = errors
+        else:
+            self.validation_error = None
+        return data
+
     async def to_json(self, result):
         if result.rowcount == 0:
             raise HTTPNotFound
@@ -109,6 +148,31 @@ class ListSerializer(BaseSerializer, metaclass=SerializerMeta):
     def __init__(self, *args, **kwargs):
         self._child = kwargs.pop('child', None)
         super(ListSerializer, self).__init__(*args, **kwargs)
+
+    async def validate(self, value):
+        errors = []
+        data = []
+
+        if value is Empty:
+            self.validation_error = 'This field is required'
+            return None
+
+        if not isinstance(value, list):
+            self.validation_error = 'Must be list object'
+            return None
+
+        for field in value:
+            field_value = await self._child.validate(field)
+            if self._child.validation_error is not None:
+                errors.append(self._child.validation_error)
+            else:
+                data.append(field_value)
+
+        if errors:
+            self.validation_error = errors
+        else:
+            self.validation_error = None
+        return data
 
     async def to_json(self, result):
         json = []

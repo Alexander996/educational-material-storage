@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
 
+from aiohttp.web_request import FileField as AioFileField
+
 from utils.db import CurrentDBConnection
 from utils.hash import hash_password
 
@@ -83,6 +85,16 @@ class CharField(Field):
 class IntegerField(Field):
     expected_types = int
 
+    async def validate(self, value):
+        try:
+            value = int(value)
+        except ValueError:
+            pass
+        except TypeError:
+            pass
+
+        return await super(IntegerField, self).validate(value)
+
     async def to_representation(self, value):
         return int(value) if value is not None else None
 
@@ -157,3 +169,14 @@ class DateTimeField(Field):
 
     async def to_representation(self, value):
         return value.isoformat() if value is not None else None
+
+
+class FileField(Field):
+    expected_types = (AioFileField, str)
+
+    def __init__(self, upload_to=None, **kwargs):
+        self.upload_to = upload_to
+        super(FileField, self).__init__(**kwargs)
+
+    async def to_representation(self, value):
+        return str(value) if value is not None else None
