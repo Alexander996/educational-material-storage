@@ -14,7 +14,8 @@ Material = sa.Table(
     sa.Column('author', sa.String(200), nullable=False),
     sa.Column('file', sa.String(200), nullable=False),
     sa.Column('type', sa.Integer, nullable=False),
-    sa.Column('deleted', sa.Boolean, nullable=False, server_default=sa.text('false'))
+    sa.Column('deleted', sa.Boolean, nullable=False, server_default=sa.text('false')),
+    sa.Column('is_open', sa.Boolean, nullable=False, server_default=sa.text('false'))
 )
 
 

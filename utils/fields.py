@@ -101,6 +101,16 @@ class IntegerField(Field):
 
 class BooleanField(Field):
     expected_types = bool
+    FALSE_VALUES = (False, 'false', 0, '0')
+    TRUE_VALUES = (True, 'true', 1, '1')
+
+    async def validate(self, value):
+        if value in self.FALSE_VALUES:
+            value = False
+        elif value in self.TRUE_VALUES:
+            value = True
+
+        return await super(BooleanField, self).validate(value)
 
     async def to_representation(self, value):
         return bool(value) if value is not None else None
