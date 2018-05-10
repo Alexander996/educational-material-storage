@@ -33,6 +33,9 @@ class AuthTokenView(BaseView):
 
             serializer = UserSerializer()
             user_data = await serializer.to_json(users)
+            if user_data['blocked']:
+                raise ValidationError(dict(detail='User is blocked'))
+
             redis_user = 'users:{}'.format(user_data['id'])
 
             token = await redis.hget(redis_user, 'token')
