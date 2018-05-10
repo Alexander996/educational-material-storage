@@ -4,6 +4,7 @@ import os
 from aiohttp import web
 
 from apps.users.models import User
+from apps.users.serializers import UserSerializer
 from utils.auth_token.serializers import AuthTokenSerializer
 from utils.exceptions import ValidationError
 from utils.permissions import AllowAny
@@ -30,15 +31,18 @@ class AuthTokenView(BaseView):
             if users.rowcount == 0:
                 raise ValidationError(dict(detail='Invalid username or password'))
 
-            user = await users.fetchone()
-            redis_user = 'users:{}'.format(user.id)
+            serializer = UserSerializer()
+            user_data = await serializer.to_json(users)
+            redis_user = 'users:{}'.format(user_data['id'])
 
             token = await redis.hget(redis_user, 'token')
             if token is None:
                 await redis.hset(redis_user, 'token', generate_token())
                 token = await redis.hget(redis_user, 'token')
 
-            return web.json_response(dict(token=token))
+            resp = dict(token=token)
+            resp.update(user_data)
+            return web.json_response(resp)
 
 
 def generate_token():
