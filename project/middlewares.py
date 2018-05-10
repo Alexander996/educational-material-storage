@@ -2,6 +2,7 @@ from aiohttp import web
 
 from project import settings
 from utils.exceptions import PermissionDenied
+from utils.permissions import AllowAny
 
 
 def setup_middlewares(app):
@@ -14,6 +15,9 @@ async def check_permissions(request, handler):
         permissions = handler.get_permission_classes(request)
     else:
         permissions = getattr(handler, 'permission_classes', settings.DEFAULT_PERMISSION_CLASSES)
+
+    if request.method == 'OPTIONS':
+        permissions = [AllowAny]
 
     for permission in permissions:
         perm = permission()
