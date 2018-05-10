@@ -1,4 +1,5 @@
 import json
+import os
 
 from datetime import datetime
 
@@ -6,9 +7,10 @@ from aiohttp import web
 
 from apps.materials.models import Material, MaterialCategory
 from apps.materials.serializers import MaterialSerializer
-from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE
+from project.permissions import MODERATOR
+from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE, BASE_DIR
 from utils import views
-from utils.exceptions import ValidationError
+from utils.exceptions import ValidationError, PermissionDenied
 from utils.media import generate_path_to_file, generate_file_name
 from utils.views import get_multipart_data
 
@@ -19,6 +21,7 @@ material_routes = web.RouteTableDef()
 class MaterialsView(views.ListView):
     model = Material
     serializer_class = MaterialSerializer
+    queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
 
     async def multipart_post(self):
         async with self.request.app['db'].acquire() as conn:
@@ -82,3 +85,26 @@ class MaterialsView(views.ListView):
 class MaterialView(views.DetailView):
     model = Material
     serializer_class = MaterialSerializer
+
+    async def delete(self):
+        async with self.request.app['db'].acquire() as conn:
+            queryset = self.get_queryset()
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+            material = await result.fetchone()
+            if material.owner != self.request['user'].id and self.request['user'].role < MODERATOR:
+                raise PermissionDenied
+
+            query = self.build_query('update', values=dict(deleted=True), queryset=queryset)
+            await conn.execute(query)
+
+            index = material.file.find(MEDIA_URL)
+            if index != -1:
+                path = BASE_DIR + '/' + material.file[index:]
+
+                try:
+                    os.remove(path)
+                except FileNotFoundError:
+                    pass
+
+            return web.Response(status=204)
