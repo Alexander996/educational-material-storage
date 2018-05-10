@@ -3,6 +3,7 @@ from datetime import datetime
 
 from aiohttp import web, hdrs
 from aiohttp.web_request import FileField
+from aiohttp_cors import CorsViewMixin
 
 from project import settings
 from project.settings import MEDIA_ROOT, MEDIA_URL, CHUNK_SIZE
@@ -10,7 +11,7 @@ from utils.exceptions import ValidationError
 from utils.media import generate_path_to_file, generate_file_name
 
 
-class BaseView(web.View):
+class BaseView(web.View, CorsViewMixin):
     _detail = None
 
     model = None
