@@ -166,6 +166,43 @@ async def get_queryset_by_user(request, conn):
     else:
         queryset = None
 
+    categories = request.query.getall('category')
+    if categories is not None:
+        category_queryset = None
+        for category in categories:
+            query = MaterialCategory.select().where(MaterialCategory.c.category == category)
+            material_categories = await conn.execute(query)
+            materials = None
+            async for material_category in material_categories:
+                if materials is not None:
+                    materials |= (Material.c.id == material_category.material)
+                else:
+                    materials = (Material.c.id == material_category.material)
+
+            if category_queryset is not None:
+                category_queryset |= materials
+            else:
+                category_queryset = materials
+
+        if queryset is not None:
+            queryset &= category_queryset
+        else:
+            queryset = category_queryset
+
+    types = request.query.getall('type')
+    if types is not None:
+        type_queryset = None
+        for m_type in types:
+            if type_queryset is not None:
+                type_queryset |= (Material.c.type == m_type)
+            else:
+                type_queryset = (Material.c.type == m_type)
+
+        if queryset is not None:
+            queryset &= type_queryset
+        else:
+            queryset = type_queryset
+
     if owner is not None:
         query = MaterialUser.select().where(MaterialUser.c.user == owner)
         material_users = await conn.execute(query)
