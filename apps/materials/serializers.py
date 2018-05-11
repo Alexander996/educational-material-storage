@@ -27,7 +27,7 @@ class MaterialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Material
         fields = '__all__'
-        read_only_fields = ('auto_date', 'deleted')
+        read_only_fields = ('auto_date', 'deleted', 'extension')
 
     async def is_valid(self, method, partial=False):
         await super(MaterialSerializer, self).is_valid(method, partial=partial)

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from aiohttp import web
 
-from apps.materials.models import Material, MaterialCategory
+from apps.materials.models import Material, MaterialCategory, MaterialUser
 from apps.materials.serializers import MaterialSerializer
 from project.permissions import MODERATOR
 from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE, BASE_DIR
@@ -21,7 +21,39 @@ material_routes = web.RouteTableDef()
 class MaterialsView(views.ListView):
     model = Material
     serializer_class = MaterialSerializer
-    queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
+
+    async def get(self):
+        async with self.request.app['db'].acquire() as conn:
+            serializer = self.get_serializer(many=True)
+            owner = self.request.query.get('owner')
+            if owner is None or self.request['user'].id != int(owner):
+                queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
+            else:
+                queryset = None
+
+            if owner is not None:
+                query = MaterialUser.select().where(MaterialUser.c.user == owner)
+                material_users = await conn.execute(query)
+                materials = None
+                async for material_user in material_users:
+                    if materials is not None:
+                        materials |= (Material.c.id == material_user.material)
+                    else:
+                        materials = (Material.c.id == material_user.material)
+
+                if queryset is not None:
+                    queryset &= materials
+                else:
+                    queryset = materials
+
+            query = self.build_query('select', queryset=queryset)
+            paginator = self.get_pagination_class()
+            if paginator is not None:
+                query = paginator.paginate_query(query)
+
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            return web.json_response(data)
 
     async def multipart_post(self):
         async with self.request.app['db'].acquire() as conn:
@@ -52,17 +84,22 @@ class MaterialsView(views.ListView):
                             break
                         f.write(chunk)
 
-                url = '{scheme}://{host}/{media_url}/{upload_to}{y}/{m}/{d}/{file_name}' \
-                      .format(scheme=self.request.scheme, host=self.request.host, media_url=MEDIA_URL,
-                              upload_to=file.upload_to + '/' if file.upload_to is not None else '',
+                url = '/{media_url}/{upload_to}{y}/{m}/{d}/{file_name}' \
+                      .format(media_url=MEDIA_URL, upload_to=file.upload_to + '/' if file.upload_to is not None else '',
                               y=now.year, m=now.month, d=now.day, file_name=filename)
                 serializer.validated_data[file_name] = url
+                index = filename.rfind('.')
+                serializer.validated_data['extension'] = filename[index+1:].upper()
 
             trans = await conn.begin()
             try:
                 categories = serializer.validated_data.pop('categories')
                 query = model.insert().values(**serializer.validated_data)
                 insert = await conn.execute(query)
+
+                query = MaterialUser.insert().values(material=insert.lastrowid,
+                                                     user=self.request['user'].id)
+                await conn.execute(query)
 
                 for category in categories:
                     query = MaterialCategory.insert().values(material=insert.lastrowid,
@@ -96,6 +133,9 @@ class MaterialView(views.DetailView):
                 raise PermissionDenied
 
             query = self.build_query('update', values=dict(deleted=True), queryset=queryset)
+            await conn.execute(query)
+
+            query = MaterialUser.delete().where(MaterialUser.c.material == material.id)
             await conn.execute(query)
 
             index = material.file.find(MEDIA_URL)
