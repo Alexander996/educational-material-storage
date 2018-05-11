@@ -164,6 +164,32 @@ async def remove_material_from_user_collection(request):
         return web.Response()
 
 
+@material_routes.post(r'/api/materials/{pk:\d+}/add_to_quick_toolbar/')
+async def add_material_to_quick_toolbar(request):
+    return await change_status_material_quick_toolbar(request, quick_toolbar=True)
+
+
+@material_routes.post(r'/api/materials/{pk:\d+}/remove_from_quick_toolbar/')
+async def add_material_to_quick_toolbar(request):
+    return await change_status_material_quick_toolbar(request, quick_toolbar=False)
+
+
+async def change_status_material_quick_toolbar(request, quick_toolbar=False):
+    async with request.app['db'].acquire() as conn:
+        pk = request.match_info['pk']
+        queryset = (MaterialUser.c.material == pk) & (MaterialUser.c.user == request['user'].id)
+
+        query = MaterialUser.select(queryset)
+        result = await conn.execute(query)
+        if result.rowcount == 0:
+            raise ValidationError(dict(detail='This material is not locate in your collection'))
+        await result.close()
+
+        query = MaterialUser.update().where(queryset).values(quick_toolbar=quick_toolbar)
+        await conn.execute(query)
+        return web.Response()
+
+
 @material_routes.get('/api/materials/search/')
 async def search_materials(request):
     async with request.app['db'].acquire() as conn:

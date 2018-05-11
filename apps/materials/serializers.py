@@ -50,6 +50,13 @@ class MaterialSerializer(serializers.ModelSerializer):
             query = MaterialUser.select().where((MaterialUser.c.material == json['id']) &
                                                 (MaterialUser.c.user == request['user'].id))
             result = await conn.execute(query)
-            json['elected'] = result.rowcount > 0
+            json['quick_toolbar'] = False
+            if result.rowcount > 0:
+                json['elected'] = True
+                material_user = await result.fetchone()
+                if material_user.quick_toolbar:
+                    json['quick_toolbar'] = True
+            else:
+                json['elected'] = False
             await result.close()
         return json
