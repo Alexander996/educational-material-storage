@@ -166,7 +166,7 @@ async def get_queryset_by_user(request, conn):
     else:
         queryset = None
 
-    categories = request.query.getall('category')
+    categories = request.query.getall('category', None)
     if categories is not None:
         category_queryset = None
         for category in categories:
@@ -189,7 +189,7 @@ async def get_queryset_by_user(request, conn):
         else:
             queryset = category_queryset
 
-    types = request.query.getall('type')
+    types = request.query.getall('type', None)
     if types is not None:
         type_queryset = None
         for m_type in types:

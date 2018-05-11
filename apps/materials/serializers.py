@@ -35,7 +35,11 @@ class MaterialSerializer(serializers.ModelSerializer):
 
     async def to_json(self, result):
         json = await super(MaterialSerializer, self).to_json(result)
-        async with self.context['request'].app['db'].acquire() as conn:
+        request = self.context['request']
+        json['file'] = '{scheme}://{host}{path}'.format(scheme=request.scheme,
+                                                        host=request.host,
+                                                        path=json['file'])
+        async with request.app['db'].acquire() as conn:
             query = MaterialCategory.select().where(MaterialCategory.c.material == json['id'])
             result = await conn.execute(query)
             serializer = MaterialCategorySerializer(many=True, context=self.context)
