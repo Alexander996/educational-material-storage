@@ -253,7 +253,7 @@ async def add_material_to_quick_toolbar(request):
 
 
 @material_routes.delete(r'/api/materials/{pk:\d+}/quick_toolbar/')
-async def add_material_to_quick_toolbar(request):
+async def remove_material_from_quick_toolbar(request):
     return await change_status_material_quick_toolbar(request, quick_toolbar=False)
 
 
