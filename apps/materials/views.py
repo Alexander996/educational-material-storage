@@ -349,7 +349,9 @@ async def get_queryset_by_user(request, conn):
             else:
                 materials = (Material.c.id == material_user.material)
 
-        if queryset is not None:
+        if materials is None:
+            queryset = Material.c.id == 0
+        elif queryset is not None:
             queryset &= materials
         else:
             queryset = materials
