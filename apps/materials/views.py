@@ -7,11 +7,13 @@ from aiohttp import web
 
 from apps.materials.models import Material, MaterialCategory, MaterialUser
 from apps.materials.serializers import MaterialSerializer
+from project import settings
 from project.permissions import MODERATOR
 from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE, BASE_DIR
 from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.media import generate_path_to_file, generate_file_name
+from utils.pagination import PagePagination
 from utils.views import get_multipart_data
 
 material_routes = web.RouteTableDef()
@@ -25,27 +27,7 @@ class MaterialsView(views.ListView):
     async def get(self):
         async with self.request.app['db'].acquire() as conn:
             serializer = self.get_serializer(many=True)
-            owner = self.request.query.get('owner')
-            if owner is None or self.request['user'].id != int(owner):
-                queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
-            else:
-                queryset = None
-
-            if owner is not None:
-                query = MaterialUser.select().where(MaterialUser.c.user == owner)
-                material_users = await conn.execute(query)
-                materials = None
-                async for material_user in material_users:
-                    if materials is not None:
-                        materials |= (Material.c.id == material_user.material)
-                    else:
-                        materials = (Material.c.id == material_user.material)
-
-                if queryset is not None:
-                    queryset &= materials
-                else:
-                    queryset = materials
-
+            queryset = await get_queryset_by_user(self.request, conn)
             query = self.build_query('select', queryset=queryset)
             paginator = self.get_pagination_class()
             if paginator is not None:
@@ -151,3 +133,52 @@ class MaterialView(views.DetailView):
                     pass
 
             return web.Response(status=204)
+
+
+@material_routes.get('/api/materials/search/')
+async def search_materials(request):
+    async with request.app['db'].acquire() as conn:
+        text = request.query.get('text')
+        if text is None:
+            raise ValidationError(dict(text='This query parameters is required'))
+
+        queryset = await get_queryset_by_user(request, conn)
+        like = '%{}%'.format(text)
+        queryset &= ((Material.c.name.like(like)) |
+                     (Material.c.author.like(like)))
+
+        query = Material.select().where(queryset)
+        paginator = PagePagination(settings.PAGE_LIMIT, request)
+        await paginator.check_next_page(query)
+        query = paginator.paginate_query(query)
+        result = await conn.execute(query)
+
+        serializer = MaterialSerializer(many=True, context={'request': request})
+        data = await serializer.to_json(result)
+        data = paginator.get_paginated_data(data)
+        return web.json_response(data)
+
+
+async def get_queryset_by_user(request, conn):
+    owner = request.query.get('owner')
+    if owner is None or request['user'].id != int(owner):
+        queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
+    else:
+        queryset = None
+
+    if owner is not None:
+        query = MaterialUser.select().where(MaterialUser.c.user == owner)
+        material_users = await conn.execute(query)
+        materials = None
+        async for material_user in material_users:
+            if materials is not None:
+                materials |= (Material.c.id == material_user.material)
+            else:
+                materials = (Material.c.id == material_user.material)
+
+        if queryset is not None:
+            queryset &= materials
+        else:
+            queryset = materials
+
+    return queryset
