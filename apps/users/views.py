@@ -164,8 +164,7 @@ async def check_user_field(request, field_name):
         users = await conn.execute(query)
         if users.rowcount == 0:
             await users.close()
-            return web.json_response(dict(detail='{} свободен'.format(field_name)))
+            return web.json_response(dict(free=True))
         else:
             await users.close()
-            return web.json_response(dict(detail='Пользователь с таким {} уже существует'.format(field_name)),
-                                     status=400)
+            return web.json_response(dict(free=False))
