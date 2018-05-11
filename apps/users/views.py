@@ -1,5 +1,6 @@
 from aiohttp import web
 from aiohttp.web_exceptions import HTTPMethodNotAllowed
+from sqlalchemy import desc
 
 from apps.users.models import User, Registration
 
@@ -19,7 +20,7 @@ class RegistrationView(views.ListView):
     model = Registration
     serializer_class = RegistrationSerializer
     queryset = Registration.c.is_completed == False
-    order_by = '-id'
+    order_by = desc('id')
 
     @staticmethod
     def get_permission_classes(request):
