@@ -36,6 +36,7 @@ class MaterialsView(views.ListView):
             if paginator is not None:
                 await paginator.check_next_page(query)
                 query = paginator.paginate_query(query)
+                query = query.order_by('-auto_date')
 
             result = await conn.execute(query)
             data = await serializer.to_json(result)
@@ -237,6 +238,7 @@ async def get_materials_from_quick_toolbar(request):
         paginator = PagePagination(settings.PAGE_LIMIT, request)
         await paginator.check_next_page(query)
         query = paginator.paginate_query(query)
+        query = query.order_by('-auto_date')
         result = await conn.execute(query)
 
         serializer = MaterialSerializer(many=True, context={'request': request})
@@ -287,6 +289,7 @@ async def search_materials(request):
         paginator = PagePagination(settings.PAGE_LIMIT, request)
         await paginator.check_next_page(query)
         query = paginator.paginate_query(query)
+        query = query.order_by('-auto_date')
         result = await conn.execute(query)
 
         serializer = MaterialSerializer(many=True, context={'request': request})

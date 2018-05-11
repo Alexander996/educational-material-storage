@@ -19,6 +19,7 @@ class RegistrationView(views.ListView):
     model = Registration
     serializer_class = RegistrationSerializer
     queryset = Registration.c.is_completed == False
+    order_by = '-id'
 
     @staticmethod
     def get_permission_classes(request):
