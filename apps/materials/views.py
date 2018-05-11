@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 
 from aiohttp import web
+from pymysql import IntegrityError
 
 from apps.materials.models import Material, MaterialCategory, MaterialUser
 from apps.materials.serializers import MaterialSerializer
@@ -111,16 +112,18 @@ class MaterialView(views.DetailView):
     async def delete(self):
         async with self.request.app['db'].acquire() as conn:
             queryset = self.get_queryset()
+            user = self.request['user']
             query = self.build_query('select', queryset=queryset)
             result = await conn.execute(query)
             material = await result.fetchone()
-            if material.owner != self.request['user'].id and self.request['user'].role < MODERATOR:
+            if material.owner != user.id and user.role < MODERATOR:
                 raise PermissionDenied
 
             query = self.build_query('update', values=dict(deleted=True), queryset=queryset)
             await conn.execute(query)
 
-            query = MaterialUser.delete().where(MaterialUser.c.material == material.id)
+            query = MaterialUser.delete().where((MaterialUser.c.material == material.id) &
+                                                (MaterialUser.c.user == user.id))
             await conn.execute(query)
 
             index = material.file.find(MEDIA_URL)
@@ -133,6 +136,32 @@ class MaterialView(views.DetailView):
                     pass
 
             return web.Response(status=204)
+
+
+@material_routes.post(r'/api/materials/{pk:\d+}/add/')
+async def add_material_to_user_collection(request):
+    async with request.app['db'].acquire() as conn:
+        pk = request.match_info['pk']
+        query = MaterialUser.insert().values(material=pk, user=request['user'].id)
+
+        try:
+            await conn.execute(query)
+        except IntegrityError as e:
+            if e.args[0] == 1062:
+                raise ValidationError(dict(detail='Material is already added'))
+            else:
+                raise e
+        return web.Response()
+
+
+@material_routes.post(r'/api/materials/{pk:\d+}/remove/')
+async def remove_material_from_user_collection(request):
+    async with request.app['db'].acquire() as conn:
+        pk = request.match_info['pk']
+        query = MaterialUser.delete().where((MaterialUser.c.material == pk) &
+                                            (MaterialUser.c.user == request['user'].id))
+        await conn.execute(query)
+        return web.Response()
 
 
 @material_routes.get('/api/materials/search/')

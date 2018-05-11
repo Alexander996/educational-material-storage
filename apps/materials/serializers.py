@@ -1,6 +1,6 @@
 from apps.categories.models import Category
 from apps.categories.serializers import CategorySerializer
-from apps.materials.models import Material, MaterialCategory
+from apps.materials.models import Material, MaterialCategory, MaterialUser
 from apps.users.serializers import UserSerializer
 from utils import serializers
 
@@ -39,10 +39,17 @@ class MaterialSerializer(serializers.ModelSerializer):
         json['file'] = '{scheme}://{host}{path}'.format(scheme=request.scheme,
                                                         host=request.host,
                                                         path=json['file'])
+
         async with request.app['db'].acquire() as conn:
             query = MaterialCategory.select().where(MaterialCategory.c.material == json['id'])
             result = await conn.execute(query)
             serializer = MaterialCategorySerializer(many=True, context=self.context)
             categories = await serializer.to_json(result)
             json['categories'] = categories
+
+            query = MaterialUser.select().where((MaterialUser.c.material == json['id']) &
+                                                (MaterialUser.c.user == request['user'].id))
+            result = await conn.execute(query)
+            json['elected'] = result.rowcount > 0
+            await result.close()
         return json
