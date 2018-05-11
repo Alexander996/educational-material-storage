@@ -1,8 +1,17 @@
 from apps.categories.models import Category
 from apps.categories.serializers import CategorySerializer
-from apps.materials.models import Material, MaterialCategory, MaterialUser
+from apps.materials.models import Material, MaterialCategory, MaterialUser, Comment
 from apps.users.serializers import UserSerializer
 from utils import serializers
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Comment
+        exclude = ('material',)
+        read_only_fields = ('auto_date',)
 
 
 class MaterialCategorySerializer(serializers.Serializer):

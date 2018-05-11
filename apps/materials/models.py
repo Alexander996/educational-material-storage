@@ -20,6 +20,16 @@ Material = sa.Table(
 )
 
 
+Comment = sa.Table(
+    'comment', material_meta,
+    sa.Column('id', sa.Integer, primary_key=True),
+    sa.Column('auto_date', sa.DateTime, server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+    sa.Column('material', None, sa.ForeignKey('material.id'), nullable=False),
+    sa.Column('text', sa.String(1000), nullable=False),
+    sa.Column('user', None, sa.ForeignKey(User.c.id), nullable=False)
+)
+
+
 MaterialCategory = sa.Table(
     'materialcategory', material_meta,
     sa.Column('id', sa.Integer, primary_key=True),

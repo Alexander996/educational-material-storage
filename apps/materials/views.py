@@ -4,18 +4,20 @@ import os
 from datetime import datetime
 
 from aiohttp import web
+from aiohttp.web_exceptions import HTTPMethodNotAllowed
 from pymysql import IntegrityError
 
-from apps.materials.models import Material, MaterialCategory, MaterialUser
-from apps.materials.serializers import MaterialSerializer
+from apps.materials.models import Material, MaterialCategory, MaterialUser, Comment
+from apps.materials.serializers import MaterialSerializer, CommentSerializer
 from project import settings
-from project.permissions import MODERATOR
+from project.permissions import MODERATOR, IsModeratorOrAbove
 from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE, BASE_DIR
 from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.media import generate_path_to_file, generate_file_name
 from utils.pagination import PagePagination
-from utils.views import get_multipart_data
+from utils.permissions import IsAuthenticated
+from utils.views import get_multipart_data, get_json_data
 
 material_routes = web.RouteTableDef()
 
@@ -138,6 +140,60 @@ class MaterialView(views.DetailView):
             return web.Response(status=204)
 
 
+@material_routes.view(r'/api/materials/{pk:\d+}/comments/')
+class CommentsView(views.ListView):
+    model = Comment
+    serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        pk = self.request.match_info['pk']
+        return Comment.c.material == pk
+
+    async def post(self):
+        async with self.request.app['db'].acquire() as conn:
+            pk = self.request.match_info['pk']
+            model = self.get_model()
+            request_data = await get_json_data(self.request)
+            serializer = self.get_serializer(data=request_data)
+            await serializer.create_validate()
+
+            data = serializer.validated_data
+            data['material'] = pk
+            data['user'] = self.request['user'].id
+            query = self.build_query('create', values=data)
+            insert = await conn.execute(query)
+
+            queryset = model.c.id == insert.lastrowid
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            return web.json_response(data, status=201)
+
+
+@material_routes.view(r'/api/materials/{material_pk:\d+}/comments/{pk:\d+}/')
+class CommentView(views.DetailView):
+    model = Comment
+    serializer_class = CommentSerializer
+
+    @staticmethod
+    def get_permission_classes(request):
+        if request.method == 'DELETE':
+            return [IsModeratorOrAbove]
+        else:
+            return [IsAuthenticated]
+
+    def get_queryset(self):
+        material_pk = self.request.match_info['material_pk']
+        comment_pk = self.request.match_info['pk']
+        return (Comment.c.material == material_pk) & (Comment.c.id == comment_pk)
+
+    async def put(self):
+        raise HTTPMethodNotAllowed
+
+    async def patch(self):
+        raise HTTPMethodNotAllowed
+
+
 @material_routes.post(r'/api/materials/{pk:\d+}/add/')
 async def add_material_to_user_collection(request):
     async with request.app['db'].acquire() as conn:
@@ -215,8 +271,8 @@ async def search_materials(request):
 
 
 async def get_queryset_by_user(request, conn):
-    owner = request.query.get('owner')
-    if owner is None or request['user'].id != int(owner):
+    user = request.query.get('user')
+    if user is None or request['user'].id != int(user):
         queryset = (Material.c.is_open == True) & (Material.c.deleted == False)
     else:
         queryset = None
@@ -258,8 +314,8 @@ async def get_queryset_by_user(request, conn):
         else:
             queryset = type_queryset
 
-    if owner is not None:
-        query = MaterialUser.select().where(MaterialUser.c.user == owner)
+    if user is not None:
+        query = MaterialUser.select().where(MaterialUser.c.user == user)
         material_users = await conn.execute(query)
         materials = None
         async for material_user in material_users:
