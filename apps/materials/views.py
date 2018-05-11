@@ -220,12 +220,37 @@ async def remove_material_from_user_collection(request):
         return web.Response()
 
 
-@material_routes.post(r'/api/materials/{pk:\d+}/add_to_quick_toolbar/')
+@material_routes.get('/api/materials/quick_toolbar/')
+async def get_materials_from_quick_toolbar(request):
+    async with request.app['db'].acquire() as conn:
+        query = MaterialUser.select().where(MaterialUser.c.user == request['user'].id)
+        material_users = await conn.execute(query)
+        queryset = None
+        async for material_user in material_users:
+            if material_user.quick_toolbar:
+                if queryset is not None:
+                    queryset |= (Material.c.id == material_user.material)
+                else:
+                    queryset = (Material.c.id == material_user.material)
+
+        query = Material.select().where(queryset)
+        paginator = PagePagination(settings.PAGE_LIMIT, request)
+        await paginator.check_next_page(query)
+        query = paginator.paginate_query(query)
+        result = await conn.execute(query)
+
+        serializer = MaterialSerializer(many=True, context={'request': request})
+        data = await serializer.to_json(result)
+        data = paginator.get_paginated_data(data)
+        return web.json_response(data)
+
+
+@material_routes.post(r'/api/materials/{pk:\d+}/quick_toolbar/')
 async def add_material_to_quick_toolbar(request):
     return await change_status_material_quick_toolbar(request, quick_toolbar=True)
 
 
-@material_routes.post(r'/api/materials/{pk:\d+}/remove_from_quick_toolbar/')
+@material_routes.delete(r'/api/materials/{pk:\d+}/quick_toolbar/')
 async def add_material_to_quick_toolbar(request):
     return await change_status_material_quick_toolbar(request, quick_toolbar=False)
 
