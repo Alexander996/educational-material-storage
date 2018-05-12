@@ -154,7 +154,7 @@ class ForeignKeyField(Field):
 
     async def validate(self, value):
         value = await super(ForeignKeyField, self).validate(value)
-        if self.validation_error is not None:
+        if self.validation_error is not None or value is None:
             return value
 
         model = self.model

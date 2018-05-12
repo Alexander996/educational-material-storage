@@ -1,5 +1,6 @@
 from apps.categories.models import Category
 from apps.categories.serializers import CategorySerializer
+from apps.folders.models import Folder
 from apps.materials.models import Material, MaterialCategory, MaterialUser, Comment
 from apps.users.serializers import UserSerializer
 from utils import serializers
@@ -26,6 +27,10 @@ class MaterialCategorySerializer(serializers.Serializer):
             category = await serializer.to_json(result)
             json = category
             return json
+
+
+class MaterialFolderSerializer(serializers.Serializer):
+    folder = serializers.ForeignKeyField(model=Folder)
 
 
 class MaterialSerializer(serializers.ModelSerializer):

@@ -6,6 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from apps.categories.models import category_meta
+from apps.folders.models import folder_meta
 from apps.materials.models import material_meta
 from apps.users.models import user_meta
 
@@ -21,7 +22,7 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = [user_meta, category_meta, material_meta]
+target_metadata = [user_meta, category_meta, material_meta, folder_meta]
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

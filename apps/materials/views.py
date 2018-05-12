@@ -8,8 +8,10 @@ from aiohttp.web_exceptions import HTTPMethodNotAllowed
 from pymysql import IntegrityError
 from sqlalchemy import desc
 
+from apps.folders.models import FolderMaterial, Folder
+from apps.folders.serializers import FolderSerializer
 from apps.materials.models import Material, MaterialCategory, MaterialUser, Comment
-from apps.materials.serializers import MaterialSerializer, CommentSerializer
+from apps.materials.serializers import MaterialSerializer, CommentSerializer, MaterialFolderSerializer
 from project import settings
 from project.permissions import MODERATOR, IsModeratorOrAbove
 from project.settings import MEDIA_URL, MEDIA_ROOT, CHUNK_SIZE, BASE_DIR
@@ -188,6 +190,65 @@ class CommentView(views.DetailView):
         material_pk = self.request.match_info['material_pk']
         comment_pk = self.request.match_info['pk']
         return (Comment.c.material == material_pk) & (Comment.c.id == comment_pk)
+
+    async def put(self):
+        raise HTTPMethodNotAllowed
+
+    async def patch(self):
+        raise HTTPMethodNotAllowed
+
+
+@material_routes.view(r'/api/materials/{pk:\d+}/folders/')
+class MaterialFoldersView(views.ListView):
+    async def get(self):
+        async with self.request.app['db'].acquire() as conn:
+            pk = self.request.match_info['pk']
+            query = FolderMaterial.select().where(FolderMaterial.c.material == pk)
+            material_folders = await conn.execute(query)
+            result = []
+            async for material_folder in material_folders:
+                query = Folder.select().where(Folder.c.id == material_folder.folder)
+                folder = await conn.execute(query)
+                folder_json = await FolderSerializer().to_json(folder)
+                parent = folder_json['parent']
+                while parent is not None:
+                    query = Folder.select().where(Folder.c.id == parent)
+                    folder_parent = await conn.execute(query)
+                    parent = await folder_parent.fetchone()
+                    folder_json['name'] = '{}/{}'.format(parent.name, folder_json['name'])
+                    parent = parent.parent
+
+                result.append(folder_json)
+            return web.json_response(result)
+
+    async def post(self):
+        async with self.request.app['db'].acquire() as conn:
+            pk = self.request.match_info['pk']
+            request_data = await get_json_data(self.request)
+            serializer = MaterialFolderSerializer(data=request_data)
+            await serializer.create_validate()
+
+            data = serializer.validated_data
+            data['folder'] = data['folder'].id
+            data['material'] = pk
+
+            query = FolderMaterial.insert().values(**data)
+            await conn.execute(query)
+            return web.Response()
+
+
+@material_routes.view(r'/api/materials/{material_pk:\d+}/folders/{pk:\d+}/')
+class MaterialFolderView(views.DetailView):
+    model = FolderMaterial
+
+    def get_queryset(self):
+        material_pk = self.request.match_info['material_pk']
+        folder_pk = self.request.match_info['pk']
+        return (FolderMaterial.c.material == material_pk) &\
+               (FolderMaterial.c.folder == folder_pk)
+
+    async def get(self):
+        raise HTTPMethodNotAllowed
 
     async def put(self):
         raise HTTPMethodNotAllowed
