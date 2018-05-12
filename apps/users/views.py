@@ -5,10 +5,12 @@ from sqlalchemy import desc
 from apps.users.models import User, Registration
 
 from apps.users.serializers import UserSerializer, RegistrationSerializer, UserCreateSerializer
+from project import settings
 from project.permissions import IsModeratorOrAbove, MODERATOR
 from utils import views
 from utils.exceptions import ValidationError, PermissionDenied
 from utils.hash import hash_password
+from utils.pagination import PagePagination
 from utils.permissions import AllowAny, permission_classes, IsAuthenticated
 from utils.views import get_json_data, validate_request_data
 
@@ -43,11 +45,7 @@ class UsersView(views.ListView):
             return [IsAuthenticated]
 
     def get_queryset(self):
-        blocked = self.request.query.get('blocked')
-        if blocked is not None and blocked.lower() == 'true':
-            return User.c.blocked == True
-        else:
-            return User.c.blocked == False
+        return get_users_by_filter(self.request)
 
     async def post(self):
         async with self.request.app['db'].acquire() as conn:
@@ -170,3 +168,49 @@ async def check_user_field(request, field_name):
         else:
             await users.close()
             return web.json_response(dict(free=False))
+
+
+@user_routes.get('/api/users/search/')
+async def search_users(request):
+    async with request.app['db'].acquire() as conn:
+        text = request.query.get('text')
+        if text is None:
+            raise ValidationError(dict(text='This query parameters is required'))
+
+        like = '%{}%'.format(text)
+        queryset = ((User.c.username.like(like)) |
+                    (User.c.first_name.like(like)) |
+                    (User.c.last_name.like(like)))
+
+        queryset &= get_users_by_filter(request)
+        print('QUERYSET:', queryset)
+        query = User.select().where(queryset)
+        paginator = PagePagination(settings.PAGE_LIMIT, request)
+        await paginator.check_next_page(query)
+        query = paginator.paginate_query(query)
+        result = await conn.execute(query)
+
+        serializer = UserSerializer(many=True, context={'request': request})
+        data = await serializer.to_json(result)
+        data = paginator.get_paginated_data(data)
+        return web.json_response(data)
+
+
+def get_users_by_filter(request):
+    blocked = request.query.get('blocked')
+    if blocked is not None and blocked.lower() == 'true':
+        queryset = User.c.blocked == True
+    else:
+        queryset = User.c.blocked == False
+
+    roles = request.query.getall('role', [])
+    roles_queryset = None
+    for role in roles:
+        if roles_queryset is not None:
+            roles_queryset |= (User.c.role == role)
+        else:
+            roles_queryset = (User.c.role == role)
+
+    if roles_queryset is not None:
+        queryset &= roles_queryset
+    return queryset
