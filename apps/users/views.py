@@ -32,6 +32,18 @@ class RegistrationView(views.ListView):
             return [IsModeratorOrAbove]
 
 
+@user_routes.view(r'/api/registration/{pk:\d+}/')
+class RegistrationPkView(views.DetailView):
+    model = Registration
+    serializer_class = RegistrationSerializer
+
+    async def put(self):
+        raise HTTPMethodNotAllowed
+
+    async def patch(self):
+        raise HTTPMethodNotAllowed
+
+
 @user_routes.view('/api/users/')
 class UsersView(views.ListView):
     model = User
