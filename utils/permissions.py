@@ -1,5 +1,6 @@
 from apps.users.models import User
-from utils.exceptions import Unauthorized
+from utils.auth_token.models import Token
+from utils.exceptions import Unauthorized, PermissionDenied
 
 
 class BasePermission(object):
@@ -18,22 +19,21 @@ class IsAuthenticated(BasePermission):
         if header is None or not header.lower().startswith('token'):
             raise Unauthorized
 
-        redis = request.app['redis']
         token = header[6:]
-
-        users = await redis.keys('users:*')
-        for user in users:
-            t = await redis.hget(user, 'token')
-            if t == token:
-                user_id = int(user[6:])
-                async with request.app['db'].acquire() as conn:
-                    query = User.select().where(User.c.id == user_id)
-                    users = await conn.execute(query)
-                    user = await users.fetchone()
-                    request['user'] = user
-                    return True
-
-        raise Unauthorized(dict(detail='Invalid token'))
+        async with request.app['db'].acquire() as conn:
+            query = Token.select().where(Token.c.key == token)
+            result = await conn.execute(query)
+            if result.rowcount == 0:
+                raise Unauthorized(dict(detail='Invalid token'))
+            else:
+                token = await result.fetchone()
+                query = User.select().where(User.c.id == token.user)
+                result = await conn.execute(query)
+                user = await result.fetchone()
+                if user.blocked:
+                    raise PermissionDenied(dict(detail='User is blocked'))
+                request['user'] = user
+                return True
 
 
 def permission_classes(permissions):

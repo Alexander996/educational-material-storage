@@ -115,6 +115,18 @@ class MaterialView(views.DetailView):
     model = Material
     serializer_class = MaterialSerializer
 
+    async def get(self):
+        async with self.request.app['db'].acquire() as conn:
+            serializer = self.get_serializer()
+            queryset = self.get_queryset()
+            query = self.build_query('select', queryset=queryset)
+            result = await conn.execute(query)
+            data = await serializer.to_json(result)
+            if not data['is_open']:
+                if data['owner']['id'] != self.request['user'].id:
+                    raise PermissionDenied
+            return web.json_response(data)
+
     async def delete(self):
         async with self.request.app['db'].acquire() as conn:
             queryset = self.get_queryset()
