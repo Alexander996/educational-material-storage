@@ -20,7 +20,6 @@ class FoldersView(views.ListView):
         queryset = (Folder.c.user == user) & (Folder.c.parent == parent)
         if int(user) != self.request['user'].id:
             queryset &= Folder.c.is_open == True
-        print('QUERYSET:', queryset)
         return queryset
 
 
