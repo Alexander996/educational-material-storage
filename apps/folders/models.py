@@ -10,7 +10,8 @@ Folder = sa.Table(
     sa.Column('id', sa.Integer, primary_key=True),
     sa.Column('name', sa.String(200), nullable=False),
     sa.Column('parent', None, sa.ForeignKey('folder.id')),
-    sa.Column('user', None, sa.ForeignKey(User.c.id), nullable=False)
+    sa.Column('user', None, sa.ForeignKey(User.c.id), nullable=False),
+    sa.Column('is_open', sa.Boolean, nullable=False, server_default=sa.text('false'))
 )
 
 

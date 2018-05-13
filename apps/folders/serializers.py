@@ -38,7 +38,8 @@ class FolderSerializer(serializers.ModelSerializer):
 class FolderDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder
-        exclude = ('user',)
+        fields = '__all__'
+        read_only_fields = ('user',)
 
     async def to_json(self, result):
         json = await super(FolderDetailSerializer, self).to_json(result)
@@ -49,11 +50,21 @@ class FolderDetailSerializer(serializers.ModelSerializer):
             result = await conn.execute(query)
             folder_serializer = FolderSerializer(many=True, context=self.context)
             folders = await folder_serializer.to_json(result)
+            if json['user'] != request['user'].id:
+                for folder in folders:
+                    if not folder['is_open']:
+                        folders.remove(folder)
+
             json['folders'] = folders
 
             query = FolderMaterial.select().where(FolderMaterial.c.folder == json['id'])
             result = await conn.execute(query)
             serializer = FolderMaterialSerializer(many=True, context=self.context)
             materials = await serializer.to_json(result)
+            if json['user'] != request['user'].id:
+                for material in materials:
+                    if not material['is_open']:
+                        materials.remove(material)
+
             json['materials'] = materials
             return json
