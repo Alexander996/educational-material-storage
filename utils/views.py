@@ -141,7 +141,7 @@ class ListView(BaseView):
             if paginator is not None:
                 await paginator.check_next_page(query)
                 query = paginator.paginate_query(query)
-                query = query.order_by(self.order_by)
+            query = query.order_by(self.order_by)
 
             result = await conn.execute(query)
             data = await serializer.to_json(result)
