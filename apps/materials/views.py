@@ -144,6 +144,10 @@ class MaterialView(views.DetailView):
                                                 (MaterialUser.c.user == user.id))
             await conn.execute(query)
 
+            query = FolderMaterial.delete().where((FolderMaterial.c.material == material.id) &
+                                                  (FolderMaterial.c.user == user.id))
+            await conn.execute(query)
+
             index = material.file.find(MEDIA_URL)
             if index != -1:
                 path = BASE_DIR + '/' + material.file[index:]
@@ -215,7 +219,8 @@ class MaterialFoldersView(views.ListView):
     async def get(self):
         async with self.request.app['db'].acquire() as conn:
             pk = self.request.match_info['pk']
-            query = FolderMaterial.select().where(FolderMaterial.c.material == pk)
+            query = FolderMaterial.select().where((FolderMaterial.c.material == pk) &
+                                                  (FolderMaterial.c.user == self.request['user'].id))
             material_folders = await conn.execute(query)
             result = []
             async for material_folder in material_folders:
@@ -237,7 +242,7 @@ class MaterialFoldersView(views.ListView):
         async with self.request.app['db'].acquire() as conn:
             pk = self.request.match_info['pk']
             request_data = await get_json_data(self.request)
-            serializer = MaterialFolderSerializer(data=request_data)
+            serializer = MaterialFolderSerializer(data=request_data, context={'request': self.request})
             await serializer.create_validate()
 
             data = serializer.validated_data

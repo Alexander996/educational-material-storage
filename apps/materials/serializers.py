@@ -32,6 +32,10 @@ class MaterialCategorySerializer(serializers.Serializer):
 class MaterialFolderSerializer(serializers.Serializer):
     folder = serializers.ForeignKeyField(model=Folder)
 
+    async def is_valid(self, method, partial=False):
+        await super(MaterialFolderSerializer, self).is_valid(method, partial=partial)
+        self.validated_data['user'] = self.context['request']['user'].id
+
 
 class MaterialSerializer(serializers.ModelSerializer):
     owner = UserSerializer(read_only=True)

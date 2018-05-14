@@ -20,5 +20,6 @@ FolderMaterial = sa.Table(
     sa.Column('id', sa.Integer, primary_key=True),
     sa.Column('material', None, sa.ForeignKey(Material.c.id), nullable=False),
     sa.Column('folder', None, sa.ForeignKey('folder.id'), nullable=False),
-    sa.UniqueConstraint('material', 'folder', name='unique_material_folder')
+    sa.Column('user', None, sa.ForeignKey(User.c.id), nullable=False),
+    sa.UniqueConstraint('material', 'folder', name='unique_material_folder'),
 )
