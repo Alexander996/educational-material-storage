@@ -46,7 +46,7 @@ class FolderDetailSerializer(serializers.ModelSerializer):
         request = self.context['request']
 
         async with request.app['db'].acquire() as conn:
-            query = Folder.select().where(Folder.c.parent == json['id'])
+            query = Folder.select().where(Folder.c.parent == json['id']).order_by('name')
             result = await conn.execute(query)
             folder_serializer = FolderSerializer(many=True, context=self.context)
             folders = await folder_serializer.to_json(result)

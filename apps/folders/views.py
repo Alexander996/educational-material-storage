@@ -13,6 +13,7 @@ class FoldersView(views.ListView):
     model = Folder
     serializer_class = FolderSerializer
     pagination_class = None
+    order_by = 'name'
 
     def get_queryset(self):
         user = self.request.query.get('user', self.request['user'].id)

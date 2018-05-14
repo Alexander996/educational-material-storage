@@ -297,6 +297,10 @@ async def remove_material_from_user_collection(request):
         query = MaterialUser.delete().where((MaterialUser.c.material == pk) &
                                             (MaterialUser.c.user == request['user'].id))
         await conn.execute(query)
+
+        query = FolderMaterial.delete().where((FolderMaterial.c.material == pk) &
+                                              (FolderMaterial.c.user == request['user'].id))
+        await conn.execute(query)
         return web.Response()
 
 
