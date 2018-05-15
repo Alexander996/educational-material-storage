@@ -233,7 +233,7 @@ class MaterialFoldersView(views.ListView):
                     query = Folder.select().where(Folder.c.id == parent)
                     folder_parent = await conn.execute(query)
                     parent = await folder_parent.fetchone()
-                    folder_json['name'] = '{}/{}'.format(parent.name, folder_json['name'])
+                    folder_json['name'] = '{} / {}'.format(parent.name, folder_json['name'])
                     parent = parent.parent
 
                 result.append(folder_json)
