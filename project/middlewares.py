@@ -1,6 +1,7 @@
 from aiohttp import web
 
 from project import settings
+from project.settings import MEDIA_URL
 from utils.exceptions import PermissionDenied
 from utils.permissions import AllowAny
 
@@ -17,6 +18,9 @@ async def check_permissions(request, handler):
         permissions = getattr(handler, 'permission_classes', settings.DEFAULT_PERMISSION_CLASSES)
 
     if request.method == 'OPTIONS':
+        permissions = [AllowAny]
+
+    if MEDIA_URL in request.path:
         permissions = [AllowAny]
 
     for permission in permissions:
